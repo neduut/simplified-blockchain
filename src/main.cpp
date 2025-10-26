@@ -9,6 +9,8 @@
 #include <iomanip>
 #include <vector>
 #include <random>
+#include <fstream>
+#include <sstream>
 
 using namespace std;
 
@@ -21,6 +23,27 @@ void printHeader(const string& title) {
 // generuoja random public key
 string generatePublicKey(const string& name) {
     return generate_hash(name + to_string(time(nullptr)));
+}
+
+// pagalbinis: dabartinis utc laikas kaip tekstas
+static string utc_now_str() {
+    std::time_t t = std::time(nullptr);
+    std::tm* g = std::gmtime(&t);
+    std::ostringstream oss;
+    if (g) {
+        oss << std::put_time(g, "%Y-%m-%d %H:%M:%S");
+    }
+    return oss.str();
+}
+
+// i log faila pazymim sesijos pradzia su date_utc
+static void log_session_start() {
+    std::ofstream file("blockchain_log.txt", std::ios::app);
+    if (!file.is_open()) return;
+    file << std::string(40, ' ') << "\n";
+    file << std::string(40, '-') << "\n";
+    file << "date_utc : " << utc_now_str() << "\n";
+    file << std::string(40, '-') << "\n";
 }
 
 // paprasti blokai su data
@@ -58,10 +81,10 @@ void testSimpleBlocks(int difficulty, int numBlocks) {
 void testTransactionBlocks() {
     printHeader("TEST v0.1: Transaction System");
     
-    Blockchain blockchain(2);
+    Blockchain blockchain(3);
     Ledger ledger;
     
-    // Sukuriame vartotojus
+    // sukuria vartotojus
     cout << "Creating users...\n";
     vector<User> users;
     users.emplace_back("Alice", generatePublicKey("Alice"), 1000);
@@ -77,10 +100,10 @@ void testTransactionBlocks() {
     cout << "\nInitial balances:\n";
     ledger.print();
     
-    // Sukuriame transaction pool
+    // sukuria transaction pool
     TxPool pool;
     
-    // Generuojame transakcijas
+    // generuoja transakcijas
     cout << "\nGenerating random transactions...\n";
     random_device rd;
     mt19937 gen(rd());
@@ -105,7 +128,7 @@ void testTransactionBlocks() {
     cout << "Generated " << pool.size() << " transactions\n\n";
     pool.print();
     
-    // Kasame blokus
+    // kasa blokus
     printHeader("Mining Blocks with Transactions");
     
     Timer totalTimer;
@@ -125,7 +148,7 @@ void testTransactionBlocks() {
     
     double totalTime = totalTimer.elapsed();
     
-    // Rezultatai
+    // rezultatai
     printHeader("Results");
     
     cout << "Total mining time: " << fixed << setprecision(2) 
@@ -150,15 +173,17 @@ void testTransactionBlocks() {
 
 int main() {
     try {
+        // pazymim sesijos pradzia log faile
+        log_session_start();
         // test 1: transaction system
         testTransactionBlocks();
         
         cout << "\n" << string(60, '-') << "\n\n";
         
-        // test 2: simple blocks (backward compatibility)
+    // test 2: simple blocks (backward compatibility)
         cout << "Press ENTER to test simple blocks (backward compatibility)...\n";
         cin.get();
-        testSimpleBlocks(2, 3);
+    testSimpleBlocks(3, 3);
         
     } catch (const exception& e) {
         cerr << "Error: " << e.what() << "\n";

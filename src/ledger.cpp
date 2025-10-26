@@ -20,14 +20,19 @@ bool Ledger::canApply(const Transaction& tx) const {
     return senderBalance >= tx.getAmount();
 }
 
-void Ledger::apply(const Transaction& tx) {
-    // mazinam siuntejo balansa
-    if (balances_.find(tx.getFrom()) != balances_.end()) {
-        balances_[tx.getFrom()] -= tx.getAmount();
+bool Ledger::apply(const Transaction& tx) {
+    // apsauga nuo underflow: jei balanso neuztenka - nieko nedarom
+    uint64_t senderBalance = getBalance(tx.getFrom());
+    if (senderBalance < tx.getAmount()) {
+        return false;
     }
+
+    // nustatom nauja siuntejo balansa be kurimo pagal nutylejima
+    balances_[tx.getFrom()] = senderBalance - tx.getAmount();
     
-    // didinam gavejo balansa
+    // didinam gavejo balansa (jei nera, sukurs su 0)
     balances_[tx.getTo()] += tx.getAmount();
+    return true;
 }
 
 bool Ledger::applyMultiple(const std::vector<Transaction>& transactions) {
@@ -40,7 +45,8 @@ bool Ledger::applyMultiple(const std::vector<Transaction>& transactions) {
     
     // jei visos validzios, pritaikom
     for (const auto& tx : transactions) {
-        apply(tx);
+        // kadangi jau patikrinom, turetu visada buti true
+        (void)apply(tx);
     }
     
     return true;

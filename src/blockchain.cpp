@@ -179,7 +179,7 @@ void Blockchain::printStatistics() const {
     std::cout << "\n" << std::string(50, '=') << "\n";
     std::cout << "BLOCKCHAIN STATISTICS\n";
     std::cout << std::string(50, '=') << "\n";
-    std::cout << "Total blocks : " << chain_.size() << "\n";
+    std::cout << "Total blocks  : " << chain_.size() << "\n";
     std::cout << "Difficulty    : " << difficulty_ << " (hash starts with " 
               << std::string(difficulty_, '0') << ")\n";
     std::cout << "Chain valid   : " << (isChainValid() ? "YES" : "NO") << "\n";
@@ -202,7 +202,15 @@ void Blockchain::saveToFile(const Block& block) const {
 
     file << "Block #" << block.getIndex() << "\n";
     file << "Timestamp : " << block.getTimestamp() << "\n";
-    file << "Data      : " << block.getData() << "\n";
+    file << "Version   : " << block.getVersion() << "\n";
+    // jei v1, rasom data; jei v2, rasom tx root ir difficulty
+    if (block.getVersion() == 1) {
+        file << "Data      : " << block.getData() << "\n";
+        file << "Difficulty: " << block.getDifficulty() << "\n";
+    } else {
+        file << "Tx Root   : " << block.getTxRoot() << "\n";
+        file << "Difficulty: " << block.getDifficulty() << "\n";
+    }
     file << "Nonce     : " << block.getNonce() << "\n";
     file << "Prev Hash : " << block.getPreviousHash() << "\n";
     file << "Hash      : " << block.getHash() << "\n";

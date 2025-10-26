@@ -110,3 +110,443 @@ Nonce     : 108
 Prev Hash : 00ce04351ad44f3e7096d3ddfdce088d1ed30c293c7cd6f9753fce359affc43b
 Hash      : 00dfabdadeb6f3b748e49a758cda9a35943a688029701decd8448a40d50b020c
 ----------------------------------------
+Block #0
+Timestamp : 1761500006
+Version   : 1
+Data      : Genesis Block
+Difficulty: 0
+Nonce     : 320
+Prev Hash : 0
+Hash      : 00ff38f5ef809fa4e70c5ed6801753a072b09805c36a6dc6286341161f8f9b40
+----------------------------------------
+Block #1
+Timestamp : 1761500006
+Version   : 2
+Tx Root   : f687301b26e34ccfd70b422f058d6affc1d50b1e584f04a786ad8fc602c8b033
+Difficulty: 2
+Nonce     : 640
+Prev Hash : 00ff38f5ef809fa4e70c5ed6801753a072b09805c36a6dc6286341161f8f9b40
+Hash      : 0021272d71c9ac0d6259dbc9a17caa22f97bdfb680bb9c5d38b7b62138dfb795
+----------------------------------------
+Block #2
+Timestamp : 1761500006
+Version   : 2
+Tx Root   : 04bf3500fd5468425f3cf455d55ad0bc574b2a0868b3ec77a9617da88a9996ad
+Difficulty: 2
+Nonce     : 1001
+Prev Hash : 0021272d71c9ac0d6259dbc9a17caa22f97bdfb680bb9c5d38b7b62138dfb795
+Hash      : 000044e68bdfcd4dd96be14ba595280f867061e150c298e376507ce22a77d036
+----------------------------------------
+Block #3
+Timestamp : 1761500006
+Version   : 2
+Tx Root   : 2dad48d313f778cfaa5d138109910c58ec4758f3ee5ffd80b27baa0b8bd4b0ce
+Difficulty: 2
+Nonce     : 0
+Prev Hash : 000044e68bdfcd4dd96be14ba595280f867061e150c298e376507ce22a77d036
+Hash      : 0092e1fbda7dadbe7391fd207eaec68020a51ec7a4357266287a3bf42fd53479
+----------------------------------------
+Block #0
+Timestamp : 1761500013
+Version   : 1
+Data      : Genesis Block
+Difficulty: 0
+Nonce     : 34
+Prev Hash : 0
+Hash      : 00826f0280a7fbc692cdc9ea18afae504ab2f926a50876f196537a3e906f2801
+----------------------------------------
+Block #1
+Timestamp : 1761500013
+Version   : 1
+Data      : Block 1 - Transaction data: User_1 sent 10 coins
+Difficulty: 0
+Nonce     : 90
+Prev Hash : 00826f0280a7fbc692cdc9ea18afae504ab2f926a50876f196537a3e906f2801
+Hash      : 007bb14a6cd95dca7b7ae4fae565c580f087dd3a3ed0aaf57834b219c4748c1b
+----------------------------------------
+Block #2
+Timestamp : 1761500013
+Version   : 1
+Data      : Block 2 - Transaction data: User_2 sent 20 coins
+Difficulty: 0
+Nonce     : 259
+Prev Hash : 007bb14a6cd95dca7b7ae4fae565c580f087dd3a3ed0aaf57834b219c4748c1b
+Hash      : 00ed352cdc69b813060e1c39f57e6df0e83a72e6a2e9565c40e82357d8868630
+----------------------------------------
+Block #3
+Timestamp : 1761500013
+Version   : 1
+Data      : Block 3 - Transaction data: User_3 sent 30 coins
+Difficulty: 0
+Nonce     : 102
+Prev Hash : 00ed352cdc69b813060e1c39f57e6df0e83a72e6a2e9565c40e82357d8868630
+Hash      : 00cdf0d0b14e71908e1314861998388799917c90518d6ea81a0160b00112cafe
+----------------------------------------
+Block #0
+Timestamp : 1761500169
+Version   : 1
+Data      : Genesis Block
+Difficulty: 0
+Nonce     : 255
+Prev Hash : 0
+Hash      : 0049e299b7e498683e45818cf289661b13b20bab6eaab0683951ce2348e52a57
+----------------------------------------
+Block #1
+Timestamp : 1761500169
+Version   : 2
+Tx Root   : 1464f9cfaa8d57a604d87ba2581838bfde519332d0b5fd1e7edac6f1cbdeb2b7
+Difficulty: 2
+Nonce     : 94
+Prev Hash : 0049e299b7e498683e45818cf289661b13b20bab6eaab0683951ce2348e52a57
+Hash      : 00a578e6b2f1d81ac4de1eeed8b7d9bfcc93ef0862d25f46cd01e7f649207adf
+----------------------------------------
+Block #2
+Timestamp : 1761500169
+Version   : 2
+Tx Root   : 6416350c19a0873e3557ca318950bc54a9a02960072373ecc1582080b7be4aba
+Difficulty: 2
+Nonce     : 1022
+Prev Hash : 00a578e6b2f1d81ac4de1eeed8b7d9bfcc93ef0862d25f46cd01e7f649207adf
+Hash      : 007cb9ed42388682a2b5faf23ae13528983518af426201bfbf99bc509ce1987d
+----------------------------------------
+Block #3
+Timestamp : 1761500169
+Version   : 2
+Tx Root   : 042f4ee72e45a4b9746192b5a8d8401e4513cf8d4e562a480ccc368e65096038
+Difficulty: 2
+Nonce     : 1455
+Prev Hash : 007cb9ed42388682a2b5faf23ae13528983518af426201bfbf99bc509ce1987d
+Hash      : 00d4aa726d599bdc6829336a22e7010ebba3495be7ea6ac7a8da51e347f73efc
+----------------------------------------
+Block #0
+Timestamp : 1761500172
+Version   : 1
+Data      : Genesis Block
+Difficulty: 0
+Nonce     : 457
+Prev Hash : 0
+Hash      : 00a4566ddec4b6e854cbbed8db39cee0344a0ff3d55672f034cc17878cef8497
+----------------------------------------
+Block #1
+Timestamp : 1761500172
+Version   : 1
+Data      : Block 1 - Transaction data: User_1 sent 10 coins
+Difficulty: 0
+Nonce     : 62
+Prev Hash : 00a4566ddec4b6e854cbbed8db39cee0344a0ff3d55672f034cc17878cef8497
+Hash      : 0062033f829d82d1dcfd68dc6a8ee9f2c9410921787e980414a01bce9000ad2d
+----------------------------------------
+Block #2
+Timestamp : 1761500172
+Version   : 1
+Data      : Block 2 - Transaction data: User_2 sent 20 coins
+Difficulty: 0
+Nonce     : 292
+Prev Hash : 0062033f829d82d1dcfd68dc6a8ee9f2c9410921787e980414a01bce9000ad2d
+Hash      : 00b1c17e39393d67d223222ddad1d6976ca13b76fb94ffd0d2434863cc10c444
+----------------------------------------
+Block #3
+Timestamp : 1761500172
+Version   : 1
+Data      : Block 3 - Transaction data: User_3 sent 30 coins
+Difficulty: 0
+Nonce     : 570
+Prev Hash : 00b1c17e39393d67d223222ddad1d6976ca13b76fb94ffd0d2434863cc10c444
+Hash      : 00568055d7bad6633146e1bb2471e4ef8745217a0cdeaf8580e9ca227ebfd3d9
+----------------------------------------
+Block #0
+Timestamp : 1761500305
+Version   : 1
+Data      : Genesis Block
+Difficulty: 0
+Nonce     : 153
+Prev Hash : 0
+Hash      : 00b337808eca239a76e905cf8028cf3dff514b4080d9d2478d6471d798a2d9f3
+----------------------------------------
+Block #1
+Timestamp : 1761500305
+Version   : 2
+Tx Root   : 489c32e644faae9edae716ea690201f598a185ed86aa453fd1353a1f1e38b1a1
+Difficulty: 2
+Nonce     : 124
+Prev Hash : 00b337808eca239a76e905cf8028cf3dff514b4080d9d2478d6471d798a2d9f3
+Hash      : 0006a5d7e0396c5c0a13867622e4c2af84f57433384b6767e5ed95ef7435ccab
+----------------------------------------
+Block #2
+Timestamp : 1761500305
+Version   : 2
+Tx Root   : db9eb03319caeef9d27c02cdd8abef09242dde51b7d9db3992ffa99f54e02406
+Difficulty: 2
+Nonce     : 247
+Prev Hash : 0006a5d7e0396c5c0a13867622e4c2af84f57433384b6767e5ed95ef7435ccab
+Hash      : 00ccdf8a4d6e81a833e1ca3c97b59154b957ca0973c9e3acb31eba4346cd1b34
+----------------------------------------
+Block #3
+Timestamp : 1761500305
+Version   : 2
+Tx Root   : 4f01ac38bb8e172b31dcbcc94c215515009ee3518479f4ebda58f849f21745be
+Difficulty: 2
+Nonce     : 544
+Prev Hash : 00ccdf8a4d6e81a833e1ca3c97b59154b957ca0973c9e3acb31eba4346cd1b34
+Hash      : 00061d2815fce35a7b8d0ac31549422fa80987abf4934e48581443d1e13d0aff
+----------------------------------------
+Block #0
+Timestamp : 1761500309
+Version   : 1
+Data      : Genesis Block
+Difficulty: 0
+Nonce     : 87
+Prev Hash : 0
+Hash      : 0042385c27e6d7461909c0da2ba299087bb06632290f78b6f8b20ea187c4f0cd
+----------------------------------------
+Block #1
+Timestamp : 1761500309
+Version   : 1
+Data      : Block 1 - Transaction data: User_1 sent 10 coins
+Difficulty: 0
+Nonce     : 126
+Prev Hash : 0042385c27e6d7461909c0da2ba299087bb06632290f78b6f8b20ea187c4f0cd
+Hash      : 0043be704e01d87af88505360cdfb4c6bca53e6758b76f0871f1ab5f2d6462f1
+----------------------------------------
+Block #2
+Timestamp : 1761500309
+Version   : 1
+Data      : Block 2 - Transaction data: User_2 sent 20 coins
+Difficulty: 0
+Nonce     : 45
+Prev Hash : 0043be704e01d87af88505360cdfb4c6bca53e6758b76f0871f1ab5f2d6462f1
+Hash      : 00bc24b63eb442eb5e4c0bef1979b345394146c73515e66b53a9a1029c987a59
+----------------------------------------
+Block #3
+Timestamp : 1761500309
+Version   : 1
+Data      : Block 3 - Transaction data: User_3 sent 30 coins
+Difficulty: 0
+Nonce     : 90
+Prev Hash : 00bc24b63eb442eb5e4c0bef1979b345394146c73515e66b53a9a1029c987a59
+Hash      : 00e1381cfb24a9be36b7baa12bcee4267c883d411ba638a5d7d0303c7ed5f47d
+----------------------------------------
+date_utc : 2025-10-26 17:40:59
+----------------------------------------
+Block #0
+Timestamp : 1761500459
+Version   : 1
+Data      : Genesis Block
+Difficulty: 0
+Nonce     : 446
+Prev Hash : 0
+Hash      : 00ebf7c8fd54a26e5210108f1bf7f51879f8daa047ca2a9ae621756832e28eae
+----------------------------------------
+Block #1
+Timestamp : 1761500459
+Version   : 2
+Tx Root   : 343dbb1148936e12744243e0df72697fd45b7c6b87813feb19871c42029d7a7c
+Difficulty: 2
+Nonce     : 7
+Prev Hash : 00ebf7c8fd54a26e5210108f1bf7f51879f8daa047ca2a9ae621756832e28eae
+Hash      : 00bfdffd258ef1c49fe26e08b754aedca9154268076d46fb300b4219639bc1c0
+----------------------------------------
+Block #2
+Timestamp : 1761500459
+Version   : 2
+Tx Root   : 622f755025d6372f5418f8041fe1d29c056bf715db7600db1225342bdc932978
+Difficulty: 2
+Nonce     : 89
+Prev Hash : 00bfdffd258ef1c49fe26e08b754aedca9154268076d46fb300b4219639bc1c0
+Hash      : 0053e3b6a392e07b02cab96e45c2ea795acb3b7dc171e0f8d48c67ac357334a5
+----------------------------------------
+Block #3
+Timestamp : 1761500459
+Version   : 2
+Tx Root   : 86037ea4acf7b8350f67ec96a3ab262db600420c126b2e45e4ae023813c7ba73
+Difficulty: 2
+Nonce     : 182
+Prev Hash : 0053e3b6a392e07b02cab96e45c2ea795acb3b7dc171e0f8d48c67ac357334a5
+Hash      : 00cd3ef04239e43ef035a3b2d13fbed0c5653f4416f9303ec0ad19bf469dccd1
+----------------------------------------
+Block #0
+Timestamp : 1761500500
+Version   : 1
+Data      : Genesis Block
+Difficulty: 0
+Nonce     : 902
+Prev Hash : 0
+Hash      : 0008d89aec863955f7b81221f6b4c4c04d0c539e9c76eedfe8fac5c614be63b5
+----------------------------------------
+Block #1
+Timestamp : 1761500500
+Version   : 1
+Data      : Block 1 - Transaction data: User_1 sent 10 coins
+Difficulty: 0
+Nonce     : 21
+Prev Hash : 0008d89aec863955f7b81221f6b4c4c04d0c539e9c76eedfe8fac5c614be63b5
+Hash      : 00a0104a0b978b50e5bc9d7016f2c3540b0290872e2b4b35cc691a0fed0d7429
+----------------------------------------
+Block #2
+Timestamp : 1761500500
+Version   : 1
+Data      : Block 2 - Transaction data: User_2 sent 20 coins
+Difficulty: 0
+Nonce     : 1078
+Prev Hash : 00a0104a0b978b50e5bc9d7016f2c3540b0290872e2b4b35cc691a0fed0d7429
+Hash      : 000fca6201a74cb034d34eafb4d112632abc6a87abe21a9b9c94c94f04d62e4d
+----------------------------------------
+Block #3
+Timestamp : 1761500500
+Version   : 1
+Data      : Block 3 - Transaction data: User_3 sent 30 coins
+Difficulty: 0
+Nonce     : 186
+Prev Hash : 000fca6201a74cb034d34eafb4d112632abc6a87abe21a9b9c94c94f04d62e4d
+Hash      : 00cf9dac32116a1320097ab3ec97a86548d1c478b08ddebab039a067843c8803
+----------------------------------------
+date_utc : 2025-10-26 17:44:04
+----------------------------------------
+----------------------------------------
+Block #0
+Timestamp : 1761500644
+Version   : 1
+Data      : Genesis Block
+Difficulty: 0
+Nonce     : 350
+Prev Hash : 0
+Hash      : 00e0a7913c880ab6e141bcd69559a31348eab908e34fd4885f527b160bdd8d7c
+----------------------------------------
+Block #1
+Timestamp : 1761500644
+Version   : 2
+Tx Root   : a4d204c28a5c7b797f783cad82e363c669bcc3b52ed7c0096bc164cf5db039dc
+Difficulty: 2
+Nonce     : 53
+Prev Hash : 00e0a7913c880ab6e141bcd69559a31348eab908e34fd4885f527b160bdd8d7c
+Hash      : 0024765653f3b8d20adb237a9cf6ba41bdfcd2652418989b871176d086ff1a3f
+----------------------------------------
+Block #2
+Timestamp : 1761500644
+Version   : 2
+Tx Root   : a7761f194543e160f980a551b3d06345cf94d262403a39dd0f0b85fd378fe87d
+Difficulty: 2
+Nonce     : 502
+Prev Hash : 0024765653f3b8d20adb237a9cf6ba41bdfcd2652418989b871176d086ff1a3f
+Hash      : 0074afb61c6512c7d026bb7123748f7400550148237c1cc96eaacb2334b22e84
+----------------------------------------
+Block #3
+Timestamp : 1761500644
+Version   : 2
+Tx Root   : ed5d1a1bf29915f9baa80d55aa3751c91681f03e2bd59476800fc83e8b8d1757
+Difficulty: 2
+Nonce     : 988
+Prev Hash : 0074afb61c6512c7d026bb7123748f7400550148237c1cc96eaacb2334b22e84
+Hash      : 003894c4d3600f33e5ad43f8f212a57e37d7568bfd1d07d4a562ac0864548796
+----------------------------------------
+Block #0
+Timestamp : 1761500646
+Version   : 1
+Data      : Genesis Block
+Difficulty: 0
+Nonce     : 166
+Prev Hash : 0
+Hash      : 005e683205c94e6e28ef856a5661cd8860d867f96f53db0e7d895a8a0959547d
+----------------------------------------
+Block #1
+Timestamp : 1761500646
+Version   : 1
+Data      : Block 1 - Transaction data: User_1 sent 10 coins
+Difficulty: 0
+Nonce     : 205
+Prev Hash : 005e683205c94e6e28ef856a5661cd8860d867f96f53db0e7d895a8a0959547d
+Hash      : 00eb248b7d9db52f21202b72e4e8afdcf8a8391de4bd18bd35145c8f74e0cd29
+----------------------------------------
+Block #2
+Timestamp : 1761500646
+Version   : 1
+Data      : Block 2 - Transaction data: User_2 sent 20 coins
+Difficulty: 0
+Nonce     : 139
+Prev Hash : 00eb248b7d9db52f21202b72e4e8afdcf8a8391de4bd18bd35145c8f74e0cd29
+Hash      : 00433ef564437534d94eed75a09bb684c8980a2f0d0c7584607b8251f0cad601
+----------------------------------------
+Block #3
+Timestamp : 1761500646
+Version   : 1
+Data      : Block 3 - Transaction data: User_3 sent 30 coins
+Difficulty: 0
+Nonce     : 307
+Prev Hash : 00433ef564437534d94eed75a09bb684c8980a2f0d0c7584607b8251f0cad601
+Hash      : 00e4a5432f7533dbddc3d616287159eb942432e1d33142a347c56a473426e1e5
+----------------------------------------
+----------------------------------------
+date_utc : 2025-10-26 17:47:26
+----------------------------------------
+Block #0
+Timestamp : 1761500846
+Version   : 1
+Data      : Genesis Block
+Difficulty: 0
+Nonce     : 569
+Prev Hash : 0
+Hash      : 000bb6fcbc5fed3d32b8eace9a18f30e259a5a805b73bfc4c8c5f79abc14de3c
+----------------------------------------
+Block #1
+Timestamp : 1761500846
+Version   : 2
+Tx Root   : a02bf9609326ac31960781015e0c496d36b1d049360f8a28281c50c614fd6411
+Difficulty: 3
+Nonce     : 3973
+Prev Hash : 000bb6fcbc5fed3d32b8eace9a18f30e259a5a805b73bfc4c8c5f79abc14de3c
+Hash      : 0000c47f8cbe6b6297402273ce6320b8d2ed26fbd55df7898ef6da3f09b1ffbb
+----------------------------------------
+Block #2
+Timestamp : 1761500847
+Version   : 2
+Tx Root   : 289aa7680643d48b1e597a3b24875cf541eba0819781b988efa09aea695df7c2
+Difficulty: 3
+Nonce     : 10031
+Prev Hash : 0000c47f8cbe6b6297402273ce6320b8d2ed26fbd55df7898ef6da3f09b1ffbb
+Hash      : 0007e532ec5e9d33233bce070211c50dce4d485f7aecaa3b4ccc5114582f94d8
+----------------------------------------
+Block #3
+Timestamp : 1761500847
+Version   : 2
+Tx Root   : e811c7891b85e14ba7cd75426de13ee44711f45c938b3d2aeef4ea6e70926e28
+Difficulty: 3
+Nonce     : 5272
+Prev Hash : 0007e532ec5e9d33233bce070211c50dce4d485f7aecaa3b4ccc5114582f94d8
+Hash      : 000bdfaa64ea2c2af2fea676a5f1d64816fef53f189191885e74a69c50310e7d
+----------------------------------------
+Block #0
+Timestamp : 1761500855
+Version   : 1
+Data      : Genesis Block
+Difficulty: 0
+Nonce     : 1620
+Prev Hash : 0
+Hash      : 0007d86f0b449039c813b150eb4c497ffe146648d38541a633c40db20d8a9ea5
+----------------------------------------
+Block #1
+Timestamp : 1761500855
+Version   : 1
+Data      : Block 1 - Transaction data: User_1 sent 10 coins
+Difficulty: 0
+Nonce     : 19611
+Prev Hash : 0007d86f0b449039c813b150eb4c497ffe146648d38541a633c40db20d8a9ea5
+Hash      : 00033b58cb6a0de68936963f971c331170c06b5950da1a19ba96d60b6c72e212
+----------------------------------------
+Block #2
+Timestamp : 1761500855
+Version   : 1
+Data      : Block 2 - Transaction data: User_2 sent 20 coins
+Difficulty: 0
+Nonce     : 2280
+Prev Hash : 00033b58cb6a0de68936963f971c331170c06b5950da1a19ba96d60b6c72e212
+Hash      : 0007a2846c54a6de30ff2abeab2a16233593342bececd0bd8340258224cc8a91
+----------------------------------------
+Block #3
+Timestamp : 1761500855
+Version   : 1
+Data      : Block 3 - Transaction data: User_3 sent 30 coins
+Difficulty: 0
+Nonce     : 594
+Prev Hash : 0007a2846c54a6de30ff2abeab2a16233593342bececd0bd8340258224cc8a91
+Hash      : 00092c0b4703b6bf1b8bba7176ac887ba2b59852deadc96411c7d6d3b80cf4e9
+----------------------------------------

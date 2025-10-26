@@ -22,8 +22,8 @@ public:
     // patikrinti ar transakcija galima pritaikyti
     bool canApply(const Transaction& tx) const;
 
-    // pritaikyti transakcija (mazina sender, didina receiver)
-    void apply(const Transaction& tx);
+    // pritaikyti transakcija (mazina sender, didina receiver) - grazina true jei pritaike
+    bool apply(const Transaction& tx);
 
     // pritaikyti kelias transakcijas
     bool applyMultiple(const std::vector<Transaction>& transactions);
