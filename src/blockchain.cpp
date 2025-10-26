@@ -43,8 +43,8 @@ void Blockchain::mineBlock(Block& block) {
 
             std::cout << "Block #" << block.getIndex() << " mined!\n";
             std::cout << "   Nonce: " << nonce 
-                      << " | Hash: " << hash.substr(0, 20) 
-                      << "... | Time: " 
+                      << " | Hash: " << hash
+                      << " | Time: " 
                       << std::fixed << std::setprecision(3) << elapsed 
                       << " s | Attempts: " << nonce + 1 << "\n\n";
             return;

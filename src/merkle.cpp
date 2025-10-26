@@ -11,7 +11,7 @@ MerkleTree MerkleTree::from_leaves(const std::vector<std::string>& leaves) {
 
     tree.levels_.push_back(leaves); // 0-asis lygis - lapai
 
-    // kurti aukstesnius lygius, kol liks vienas elementas (saknis)
+    // kuria aukstesnius lygius, kol liks vienas elementas (saknis)
     while (tree.levels_.back().size() > 1) {
         const auto& cur = tree.levels_.back();
         std::vector<std::string> next;
@@ -21,7 +21,7 @@ MerkleTree MerkleTree::from_leaves(const std::vector<std::string>& leaves) {
         while (i < cur.size()) {
             const std::string& left = cur[i];
             const std::string& right = (i + 1 < cur.size()) ? cur[i + 1] : cur[i]; // dubliuojam paskutini jei nelyginis
-            // naudoti bendra taisykle: hash(left + right)
+            // naudoja bendra taisykle: hash(left + right)
             next.push_back(generate_hash(left + right));
             i += 2;
         }
@@ -38,13 +38,12 @@ std::string MerkleTree::root() const {
 }
 
 void MerkleTree::print() const {
-    std::cout << "merkle medzio lygiai (0 - lapai):\n";
+    std::cout << "Merkle Tree lygiai (0 - lapai):\n";
     for (size_t lvl = 0; lvl < levels_.size(); ++lvl) {
         std::cout << "lvl " << lvl << ": ";
         for (size_t j = 0; j < levels_[lvl].size(); ++j) {
             const auto& h = levels_[lvl][j];
-            // parodyti tik pradzia, kad butu trumpiau
-            std::cout << (h.size() > 8 ? h.substr(0, 8) : h) << (j + 1 < levels_[lvl].size() ? "," : "");
+            std::cout << h << (j + 1 < levels_[lvl].size() ? "," : "");
         }
         std::cout << "\n";
     }

@@ -60,12 +60,12 @@ void Block::printBlock() const {
         std::cout << "Data      : " << data_ << "\n";
     } else {
         std::cout << "Tx Count  : " << transactions_.size() << "\n";
-        std::cout << "Tx Root   : " << txRoot_.substr(0, 16) << "...\n";
+        std::cout << "Tx Root   : " << txRoot_ << "\n";
         std::cout << "Difficulty: " << difficulty_ << "\n";
     }
     
     std::cout << "Nonce     : " << nonce_ << "\n";
-    std::cout << "Prev Hash : " << previousHash_.substr(0, 16) << "...\n";
-    std::cout << "Hash      : " << hash_.substr(0, 32) << "...\n";
+    std::cout << "Prev Hash : " << previousHash_ << "\n";
+    std::cout << "Hash      : " << hash_ << "\n";
     std::cout << "----------------------------------------\n\n";
 }

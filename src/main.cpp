@@ -5,6 +5,7 @@
 #include "ledger.h"
 #include "ownHash.h"
 #include "timer.h"
+#include "merkle.h"
 #include <iostream>
 #include <iomanip>
 #include <vector>
@@ -84,33 +85,33 @@ void testTransactionBlocks() {
     Blockchain blockchain(3);
     Ledger ledger;
     
-    // sukuria vartotojus
-    cout << "Creating users...\n";
+    // sukuria ~1000 vartotoju
+    cout << "Generating ~1000 users...\n";
     vector<User> users;
-    users.emplace_back("Alice", generatePublicKey("Alice"), 1000);
-    users.emplace_back("Bob", generatePublicKey("Bob"), 800);
-    users.emplace_back("Charlie", generatePublicKey("Charlie"), 1200);
-    users.emplace_back("Diana", generatePublicKey("Diana"), 500);
-    users.emplace_back("Eve", generatePublicKey("Eve"), 950);
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_int_distribution<> balanceDist(100, 1000000);
     
-    for (const auto& user : users) {
-        ledger.setBalance(user.getPublicKey(), user.getBalance());
+    for (int i = 0; i < 1000; ++i) {
+        string name = "User_" + to_string(i);
+        string pubKey = generatePublicKey(name + to_string(i));
+        uint64_t balance = balanceDist(gen);
+        users.emplace_back(name, pubKey, balance);
+        ledger.setBalance(pubKey, balance);
     }
     
-    cout << "\nInitial balances:\n";
-    ledger.print();
+    cout << "Created " << users.size() << " users\n";
+    cout << "Total coins in system: " << ledger.getTotalBalance() << "\n";
     
     // sukuria transaction pool
     TxPool pool;
     
-    // generuoja transakcijas
-    cout << "\nGenerating random transactions...\n";
-    random_device rd;
-    mt19937 gen(rd());
+    // generuoja ~10000 transakciju
+    cout << "\nGenerating ~10000 transactions...\n";
     uniform_int_distribution<> userDist(0, users.size() - 1);
-    uniform_int_distribution<> amountDist(10, 100);
+    uniform_int_distribution<> amountDist(10, 1000);
     
-    for (int i = 0; i < 250; ++i) {
+    for (int i = 0; i < 10000; ++i) {
         int fromIdx = userDist(gen);
         int toIdx = userDist(gen);
         
@@ -125,8 +126,25 @@ void testTransactionBlocks() {
         pool.addTransaction(tx);
     }
     
-    cout << "Generated " << pool.size() << " transactions\n\n";
-    pool.print();
+    cout << "Generated " << pool.size() << " transactions\n";
+    cout << "(Showing first 5 for brevity)\n";
+    
+    // rodyti tik pirmas 5 transakcijas
+    size_t origSize = pool.size();
+    cout << "\nTransaction Pool (size: " << origSize << ")\n";
+    cout << string(40, '-') << "\n";
+    const auto& allTxs = pool.getAll();
+    for (size_t i = 0; i < min(size_t(5), allTxs.size()); ++i) {
+        const auto& tx = allTxs[i];
+        cout << "  [" << (i+1) << "] " 
+             << tx.getFrom().substr(0, 8) << "... -> "
+             << tx.getTo().substr(0, 8) << "... : "
+             << tx.getAmount() << " coins\n";
+    }
+    if (origSize > 5) {
+        cout << "  ... and " << (origSize - 5) << " more\n";
+    }
+    cout << "\n";
     
     // kasa blokus
     printHeader("Mining Blocks with Transactions");
@@ -184,6 +202,32 @@ int main() {
         cout << "Press ENTER to test simple blocks (backward compatibility)...\n";
         cin.get();
     testSimpleBlocks(3, 3);
+
+    // test 3: merkle tree demo
+        cout << "\nPress ENTER to test Merkle Tree...\n";
+        cin.get();
+        printHeader("TEST v0.1: Merkle Tree Demo");
+        
+        // keletas fake tx id
+        vector<string> txIds = {
+            "tx001_abcdef1234567890",
+            "tx002_1234567890abcdef",
+            "tx003_fedcba0987654321",
+            "tx004_0987654321fedcba",
+            "tx005_aabbccddeeff1122"
+        };
+        
+        cout << "Sukuriamas Merkle Tree is " << txIds.size() << " transaction ID:\n";
+        for (size_t i = 0; i < txIds.size(); ++i) {
+            cout << "  [" << i << "] " << txIds[i] << "\n";
+        }
+        cout << "\n";
+        
+        MerkleTree mt = MerkleTree::from_leaves(txIds);
+        mt.print();
+        
+        cout << "\nMerkle Root: " << mt.root() << "\n";
+        cout << "(Pastaba: Merkle Tree nera integruotas i Block txRoot - tai bus v0.2)\n";
         
     } catch (const exception& e) {
         cerr << "Error: " << e.what() << "\n";
