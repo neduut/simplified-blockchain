@@ -68,6 +68,75 @@ void Blockchain::addBlock(const std::string& data) {
     saveToFile(newBlock);
 }
 
+// v0.2: Formuoja bloką iš transaction pool'o
+bool Blockchain::formBlockFromPool(TxPool& pool, Ledger& ledger, size_t nTx) {
+    if (pool.empty()) {
+        std::cout << "⚠️  Transaction pool is empty!\n";
+        return false;
+    }
+    
+    // 1. Pasiimame iki nTx atsitiktinių transakcijų
+    std::vector<Transaction> selectedTx = pool.takeRandom(nTx);
+    
+    if (selectedTx.empty()) {
+        return false;
+    }
+    
+    std::cout << "\n📦 Forming block from " << selectedTx.size() << " transactions...\n";
+    
+    // 2. Filtruojame tik validžias transakcijas
+    std::vector<Transaction> validTx;
+    std::vector<std::string> toRemoveIds;
+    
+    for (const auto& tx : selectedTx) {
+        if (ledger.canApply(tx)) {
+            validTx.push_back(tx);
+            toRemoveIds.push_back(tx.getId());
+        } else {
+            std::cout << "   ⚠️  Invalid TX " << tx.getId().substr(0, 8) 
+                     << "... (insufficient balance)\n";
+            // Ištriname invalidžią transakciją iš pool'o
+            toRemoveIds.push_back(tx.getId());
+        }
+    }
+    
+    if (validTx.empty()) {
+        std::cout << "❌ No valid transactions to mine!\n";
+        pool.eraseByIds(toRemoveIds);
+        return false;
+    }
+    
+    std::cout << "   ✅ " << validTx.size() << " valid transactions selected\n";
+    
+    // 3. Sukuriame bloką su transakcijomis
+    int newIndex = static_cast<int>(chain_.size());
+    std::string prevHash = getLastBlockHash();
+    
+    Block newBlock(newIndex, validTx, prevHash, difficulty_);
+    
+    // 4. Kasame bloką (proof-of-work)
+    mineBlock(newBlock);
+    
+    // 5. Jei pavyko iškasti - pritaikome transakcijas ledger'yje
+    for (const auto& tx : validTx) {
+        ledger.apply(tx);
+    }
+    
+    // 6. Ištrename panaudotas transakcijas iš pool'o
+    pool.eraseByIds(toRemoveIds);
+    
+    // 7. Pridedame bloką į grandinę
+    chain_.push_back(newBlock);
+    
+    // 8. Išsaugome į failą
+    saveToFile(newBlock);
+    
+    std::cout << "✅ Block #" << newIndex << " added to chain with " 
+             << validTx.size() << " transactions\n\n";
+    
+    return true;
+}
+
 std::string Blockchain::getLastBlockHash() const {
     if (chain_.empty()) return "0";
     return chain_.back().getHash();
