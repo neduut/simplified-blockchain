@@ -9,10 +9,10 @@
 Blockchain::Blockchain(int difficulty)
     : difficulty_(difficulty) 
 {
-    std::cout << "=============================================\n";
+    std::cout << "==============================================\n";
     std::cout << "Simplified Blockchain v0.1\n";
     std::cout << "Difficulty: " << difficulty << "\n";
-    std::cout << "=============================================\n\n";
+    std::cout << "==============================================\n\n";
 
     // Genesis block
     Block genesis(0, "Genesis Block", "0");
