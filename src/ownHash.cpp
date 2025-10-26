@@ -1,4 +1,5 @@
 #include "ownHash.h"
+#include "constants.h"
 
 #include <array>
 #include <vector>
@@ -19,6 +20,12 @@ namespace {
         sk %= 62;
         if (sk < 0) sk += 62;
         return BASE62[sk];
+    }
+
+    // pavercia skaičių į HEX simbolį (0-9, a-f)
+    inline char to_hex(int sk) {
+        constexpr char HEX[] = "0123456789abcdef";
+        return HEX[sk % 16];
     }
 
     // elementai maisomi priklausomai nuo ju vertes
@@ -42,17 +49,6 @@ namespace {
             
             previous[new_pos] = value;
         }
-    }
-
-    // padalina per puse ir sukeicia vietomis
-    void swap_halves(vector<int>& previous) {
-        size_t n = previous.size();
-        size_t h = n / 2; // antroji pusė bus ilgesnė jei nelyginis dydis
-        vector<int> first(previous.begin(), previous.begin() + h);
-        vector<int> second(previous.begin() + h, previous.end());
-        previous.clear();
-        previous.insert(previous.end(), second.begin(), second.end());
-        previous.insert(previous.end(), first.begin(), first.end());
     }
 
     // pagrindinis masymas - kiekvienas elementas paveiks 3 kitus
@@ -133,9 +129,6 @@ string generate_hash(const string& user_input) {
         // c) maisymas kur vienas elementas paveikia kitus 3 - stipriausias efektas
         three_in_one_mixer(previous);
 
-        // d) padalinu masyva per puse ir sukeiciu dalis vietomis - finalus permutation
-        swap_halves(previous);
-
         // jei tuscia ivestis
         if (previous.empty()) {
             previous.push_back(0);
@@ -177,14 +170,43 @@ string generate_hash(const string& user_input) {
         seed[si] = to_base62(rez % 62); // mod 62 kad griztu i base62 simboli
     }
 
-    // 6) sukuriu galutini hash – 64 base62 simboliai
+    // 6) sukuriu galutini hash – 32 baitus (256 bitų), tada konvertuoju į 64 HEX simbolius
+    vector<unsigned char> bytes;
+    bytes.reserve(32);
+    
+    // Generuojame 32 baitus su geresniu maišymu
+    for (int i = 0; i < 32; ++i) {
+        int a = (int)(unsigned char)seed[i % seed.size()];
+        int b = previous[i % previous.size()];
+        int c = previous[(i * 3) % previous.size()];
+        
+        // Sudėtingesnis maisymas - kiekvienas baitas priklauso nuo kelių šaltinių
+        int byte_val = (a * 31 + b * 17 + c * 13) % 256;
+        byte_val ^= (i * 7 + a) % 256;  // XOR su pozicija
+        byte_val = (byte_val * 131 + 17) % 256;  // Papildomas maišymas su pirminiu skaičiumi
+        
+        // Dar vienas XOR su seed
+        int seed_idx = (i * 7 + byte_val) % seed.size();
+        byte_val ^= (int)(unsigned char)seed[seed_idx];
+        
+        bytes.push_back(static_cast<unsigned char>(byte_val % 256));
+    }
+    
+    // Papildomas diffusion layer - kiekvienas baitas paveikia kaimynus
+    for (size_t i = 0; i < bytes.size(); ++i) {
+        size_t next = (i + 1) % bytes.size();
+        size_t prev = (i + bytes.size() - 1) % bytes.size();
+        
+        int mixed = (bytes[i] + bytes[prev] * 3 + bytes[next] * 5) % 256;
+        bytes[i] = static_cast<unsigned char>(mixed);
+    }
+    
+    // Konvertuojame 32 baitus į 64 HEX simbolius
     string out;
     out.reserve(64);
-    for (int i = 0; i < 64; ++i) {
-        int a = (int)(unsigned char)seed[i % seed.size()]; // seed simbolis (ratu)
-        int b = previous[i % previous.size()]; // masyvo elementas (ratu)
-        int v = (a + b + i * 17) % 62; // pozicijos itaka ir mod 62
-        out.push_back(to_base62(v));
+    for (unsigned char byte : bytes) {
+        out.push_back(to_hex(byte >> 4));    // aukštesnysis nibble (4 bitai)
+        out.push_back(to_hex(byte & 0x0F));  // žemesnysis nibble (4 bitai)
     }
 
     return out;
