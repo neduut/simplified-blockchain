@@ -18,12 +18,12 @@ void printHeader(const string& title) {
     cout << string(60, '=') << "\n\n";
 }
 
-// Generuoja atsitiktinį public key
+// generuoja random public key
 string generatePublicKey(const string& name) {
     return generate_hash(name + to_string(time(nullptr)));
 }
 
-// v0.1 Test: Paprasti blokai su data
+// paprasti blokai su data
 void testSimpleBlocks(int difficulty, int numBlocks) {
     printHeader("TEST v0.1: Simple Blocks (difficulty = " + to_string(difficulty) + ")");
     
@@ -46,9 +46,9 @@ void testSimpleBlocks(int difficulty, int numBlocks) {
     
     printHeader("BLOCKCHAIN VALIDATION");
     if (blockchain.isChainValid()) {
-        cout << "✓ Blockchain is VALID!\n\n";
+        cout << "Blockchain is VALID!\n\n";
     } else {
-        cout << "✗ Blockchain is INVALID!\n\n";
+        cout << "Blockchain is INVALID!\n\n";
     }
     
     blockchain.printChain();
@@ -140,31 +140,22 @@ void testTransactionBlocks() {
     blockchain.printStatistics();
     
     if (blockchain.isChainValid()) {
-        cout << "✅ Blockchain is VALID!\n\n";
+        cout << "Blockchain is VALID!\n\n";
     } else {
-        cout << "❌ Blockchain is INVALID!\n\n";
+        cout << "Blockchain is INVALID!\n\n";
     }
     
     blockchain.printChain();
 }
 
 int main() {
-    cout << R"(
-╔═══════════════════════════════════════════════════════════╗
-║                                                           ║
-║     SIMPLIFIED BLOCKCHAIN - Transaction System           ║
-║                   Version 0.1                             ║
-║                                                           ║
-╚═══════════════════════════════════════════════════════════╝
-)" << "\n";
-
     try {
-        // Test 1: Transaction system (v0.1 išplėsta versija)
+        // test 1: transaction system
         testTransactionBlocks();
         
         cout << "\n" << string(60, '-') << "\n\n";
         
-        // Test 2: Simple blocks (backward compatibility)
+        // test 2: simple blocks (backward compatibility)
         cout << "Press ENTER to test simple blocks (backward compatibility)...\n";
         cin.get();
         testSimpleBlocks(2, 3);

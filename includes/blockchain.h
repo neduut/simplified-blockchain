@@ -9,17 +9,17 @@ class Blockchain {
 public:
     explicit Blockchain(int difficulty);
 
-    // v0.1: Simple block with data
+    // simple block
     void addBlock(const std::string& data);
     
-    // v0.2: Block su transakcijomis iš pool'o
+    // block su transakcijom is pool
     bool formBlockFromPool(TxPool& pool, Ledger& ledger, size_t nTx = 100);
     
     bool isChainValid() const;
     void printChain() const;
     void printStatistics() const;
     
-    // Getters
+    // getters
     size_t getChainSize() const { return chain_.size(); }
     const Block& getBlock(size_t index) const { return chain_.at(index); }
     int getDifficulty() const { return difficulty_; }

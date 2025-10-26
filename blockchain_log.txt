@@ -1,0 +1,56 @@
+Block #0
+Timestamp : 1761497839
+Data      : Genesis Block
+Nonce     : 0
+Prev Hash : 0
+Hash      : 009422040991416af0417b431c35672fb642481498e855807be1cbf3ea6535d1
+----------------------------------------
+Block #1
+Timestamp : 1761497839
+Data      : 
+Nonce     : 557
+Prev Hash : 009422040991416af0417b431c35672fb642481498e855807be1cbf3ea6535d1
+Hash      : 008e4feed44a726174ded8aca9c229391523cdd21f03ca5368f575fa7c08970d
+----------------------------------------
+Block #2
+Timestamp : 1761497839
+Data      : 
+Nonce     : 662
+Prev Hash : 008e4feed44a726174ded8aca9c229391523cdd21f03ca5368f575fa7c08970d
+Hash      : 00081ad1716a67e04d7e80af731fc93fb16338c585990439231250d904bf978f
+----------------------------------------
+Block #3
+Timestamp : 1761497839
+Data      : 
+Nonce     : 183
+Prev Hash : 00081ad1716a67e04d7e80af731fc93fb16338c585990439231250d904bf978f
+Hash      : 0046d9353b9acc5c7259b1871d6853f8ea961e9c1c70a5e18df3b7458eb4a975
+----------------------------------------
+Block #0
+Timestamp : 1761497844
+Data      : Genesis Block
+Nonce     : 829
+Prev Hash : 0
+Hash      : 00200ff978b615b05a96a29ad6e97c7e425d1bb77f7e88f31513b49f25ddfad7
+----------------------------------------
+Block #1
+Timestamp : 1761497844
+Data      : Block 1 - Transaction data: User_1 sent 10 coins
+Nonce     : 239
+Prev Hash : 00200ff978b615b05a96a29ad6e97c7e425d1bb77f7e88f31513b49f25ddfad7
+Hash      : 000102a4219980db35915e73179b97bd6879884c747b6af3402883f38a1522c9
+----------------------------------------
+Block #2
+Timestamp : 1761497844
+Data      : Block 2 - Transaction data: User_2 sent 20 coins
+Nonce     : 1513
+Prev Hash : 000102a4219980db35915e73179b97bd6879884c747b6af3402883f38a1522c9
+Hash      : 002f5547a3b58d9ccefa7cef946d7e5707d8c3b097158aecea23e365732c862e
+----------------------------------------
+Block #3
+Timestamp : 1761497845
+Data      : Block 3 - Transaction data: User_3 sent 30 coins
+Nonce     : 125
+Prev Hash : 002f5547a3b58d9ccefa7cef946d7e5707d8c3b097158aecea23e365732c862e
+Hash      : 00dbb38fd7a2896d6b0721aff4218d59450a5f11f7ac7fe5ceadebbeda5d4577
+----------------------------------------

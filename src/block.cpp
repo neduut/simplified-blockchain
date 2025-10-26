@@ -15,12 +15,12 @@ Block::Block(int index, const std::string& data, const std::string& previousHash
     , difficulty_(0)
     , txRoot_("") {}
 
-// v0.2: Konstruktorius su transakcijomis
+// konstruktorius su transakcijomis
 Block::Block(int index, const std::vector<Transaction>& transactions, 
              const std::string& previousHash, int difficulty)
     : index_(index)
     , timestamp_(std::time(nullptr))
-    , data_("")  // v0.2 nenaudojame data_
+    , data_("")
     , previousHash_(previousHash)
     , nonce_(0)
     , hash_("")
@@ -28,7 +28,7 @@ Block::Block(int index, const std::vector<Transaction>& transactions,
     , difficulty_(difficulty)
     , transactions_(transactions) {
     
-    // Generuojame txRoot - paprastas visų TX ID hash
+    // generuojam txroot - visu tx id hash
     std::ostringstream oss;
     for (const auto& tx : transactions_) {
         oss << tx.getId();
