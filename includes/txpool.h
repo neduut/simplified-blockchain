@@ -9,7 +9,6 @@ private:
     std::vector<Transaction> pool_;
 
 public:
-public:
     TxPool() = default;
 
     // prideti transakcija i pool
