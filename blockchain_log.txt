@@ -54,3 +54,59 @@ Nonce     : 125
 Prev Hash : 002f5547a3b58d9ccefa7cef946d7e5707d8c3b097158aecea23e365732c862e
 Hash      : 00dbb38fd7a2896d6b0721aff4218d59450a5f11f7ac7fe5ceadebbeda5d4577
 ----------------------------------------
+Block #0
+Timestamp : 1761499657
+Data      : Genesis Block
+Nonce     : 590
+Prev Hash : 0
+Hash      : 007be72c1881493fb1ba056eba597bfee6b66a876295aa6ad3dbd2d5c5e75fdf
+----------------------------------------
+Block #1
+Timestamp : 1761499657
+Data      : 
+Nonce     : 260
+Prev Hash : 007be72c1881493fb1ba056eba597bfee6b66a876295aa6ad3dbd2d5c5e75fdf
+Hash      : 00c0479cd28e6cdcfeed20135f507d0222d69d9775760bdcae5d5fb42dfc57c3
+----------------------------------------
+Block #2
+Timestamp : 1761499657
+Data      : 
+Nonce     : 374
+Prev Hash : 00c0479cd28e6cdcfeed20135f507d0222d69d9775760bdcae5d5fb42dfc57c3
+Hash      : 0087bc8389b8deaa1cf1d11d400323d59bf7ac068e48ee48ccec82697e9cc667
+----------------------------------------
+Block #3
+Timestamp : 1761499657
+Data      : 
+Nonce     : 208
+Prev Hash : 0087bc8389b8deaa1cf1d11d400323d59bf7ac068e48ee48ccec82697e9cc667
+Hash      : 0077bab911cf4a43cc9fc2938fcda20fea978f8798c8e675e5477a2ce6b27487
+----------------------------------------
+Block #0
+Timestamp : 1761499666
+Data      : Genesis Block
+Nonce     : 104
+Prev Hash : 0
+Hash      : 00f70b05defbb0f7d903520d97c10264c70939e4c4000f3e6fbd521db68a56bc
+----------------------------------------
+Block #1
+Timestamp : 1761499666
+Data      : Block 1 - Transaction data: User_1 sent 10 coins
+Nonce     : 161
+Prev Hash : 00f70b05defbb0f7d903520d97c10264c70939e4c4000f3e6fbd521db68a56bc
+Hash      : 00310e15e6d1ed4266d8a2536d7b50f78abdd153784127c2baefd48b77dad8d3
+----------------------------------------
+Block #2
+Timestamp : 1761499666
+Data      : Block 2 - Transaction data: User_2 sent 20 coins
+Nonce     : 41
+Prev Hash : 00310e15e6d1ed4266d8a2536d7b50f78abdd153784127c2baefd48b77dad8d3
+Hash      : 00ce04351ad44f3e7096d3ddfdce088d1ed30c293c7cd6f9753fce359affc43b
+----------------------------------------
+Block #3
+Timestamp : 1761499666
+Data      : Block 3 - Transaction data: User_3 sent 30 coins
+Nonce     : 108
+Prev Hash : 00ce04351ad44f3e7096d3ddfdce088d1ed30c293c7cd6f9753fce359affc43b
+Hash      : 00dfabdadeb6f3b748e49a758cda9a35943a688029701decd8448a40d50b020c
+----------------------------------------
