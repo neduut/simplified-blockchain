@@ -219,7 +219,7 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
     for (int i = 0; i < blocksToMine; ++i) {
         cout << "\n--- Mining Block #" << i + 1 << " ---\n";
         
-        if (blockchain.formBlockFromPool(pool, ledger, 80)) {
+        if (blockchain.formBlockFromPool(pool, ledger, 100)) {
             successfulBlocks++;
         } else {
             cout << "Failed to mine block\n";

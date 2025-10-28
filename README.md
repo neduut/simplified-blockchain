@@ -1,26 +1,25 @@
 # Simplified Blockchain v0.1
 
-Paprastas blockchain projektas su Proof-of-Work algoritmu, transakcijomis ir balansu sistema.
+Paprastas blockchain projektas su Proof-of-Work algoritmu, transakcijomis ir balansų sistema.
 
 ## Apie projektą
 
 v0.1 versija realizuoja centralizuotą blokų grandinę su:
-- ~1000 vartotojų, sugeneruotais su atsitiktiniais balansais (100-1 000 000 monetomis)
-- ~10 000 transakcijomis tarp vartotojų
+- 1000 vartotojų su atsitiktiniais pradiniais balansais (nuo 100 iki 1 000 000 monetų)
 - Proof-of-Work kasimo procesu (difficulty = 3, hash turi prasidėti "000...")
-- Account model balansų skaičiavimu ir validacija
-- Custom 256-bit maišos funkcija (HEX formatu)
-- Blokų grandinės validacija
+- Account model balansų skaičiavimu ir patikrinimu
+- Nuosava hash funkcija iš praeito projekto
+- Blokų grandinės patikrinimu
+- Interaktyvi užklausų sistema - konkreti info
+- Į konsolę dėl aiškumo viskas vedama anglų kalba
 
-Tikslas: sukurti minimalią, bet pilnavertę blockchain sistemą, kuri demonstruoja pagrindines koncepcijas (PoW, grandinę, transakcijas, validaciją).
+Programa automatiškai sugeneruos 1000 vartotojų, 10000 transakcijų, formuos blokus su po 100 atsitiktinių transakcijų.
 
-Programa automatiškai sugeneruos 1000 vartotojų, 10000 transakcijų, ir kas blokus su ~100 transakcijų iki kol baseinas ištuštėja.
+## Architektūra
 
-## Architektura
+Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiškius failus:
 
-Projektas naudoja OOP principus ir suskirstytas į aiškias klases:
-
-### Pagrindinės klasės
+### Pagrindiniai failai
 
 **Block** (`block.h/cpp`)
 - Saugo bloko duomenis: index, timestamp, hash, prev hash, nonce
@@ -60,11 +59,14 @@ Projektas naudoja OOP principus ir suskirstytas į aiškias klases:
 - `root()` - grąžina šaknį
 - v0.1 dar nenaudojamas Block txRoot skaičiavime
 
+**Timer** (`timer.h/cpp`)
+- Paprastas chrono wrapper laiko matavimui
+- `elapsed()` - grąžina praėjusį laiką sekundėmis
+
 ### OOP principai
 
 - **Enkapsuliacija**: visi duomenų laukai `private`, prieiga per getterius/setterius
-- **Konstruktoriai**: parametrizuoti konstruktoriai visiems objektams (pvz., `Block(index, transactions, prevHash, difficulty)`)
-- **Const correctness**: getteriai pažymėti `const`, metodai nemodifikuojantys būsenos - `const`
+- **Konstruktoriai**: konstruktoriai su parametrais visiems objektams (pvz., `Block(index, transactions, prevHash, difficulty)`)
 - **RAII**: automatinis resursų valdymas (STL konteineriai, Timer klasė)
 - **Single Responsibility**: kiekviena klasė atsakinga už vieną dalyką
 
@@ -74,18 +76,18 @@ Projektas naudoja OOP principus ir suskirstytas į aiškias klases:
 - hash'inami laukai:
 	- v1 blokas: index, timestamp, data, prevHash, nonce
 	- v2 blokas: index, timestamp, version, difficulty, txRoot (v0.1 paprastas visų tx id hash), prevHash, nonce
-- kasimas: didinu nonce nuo 0; po kiekvieno bandymo skaičiuoju hash(toString()). kai hash prasideda reikiamu kiekiu nulių, blokas laikomas iškastu.
-- progresas: kas 100000 bandymų išvedamas bandymų skaičius; po kasimo parodytas Nonce | Hash | Time | Attempts.
-- validacija: `isChainValid()` tikrina prev hash nuorodas, perhashuoja bloko turinį ir patikrina, kad hash atitiktų difficulty ("000...").
-- difficulty: nustatomas paleidžiant `Blockchain(3)`. galima pakeisti į didesnį/mažesnį.
+- kasimas: didinu nonce nuo 0; po kiekvieno bandymo skaičiuoju `hash(toString())`, kai hash prasideda reikiamu kiekiu nulių, blokas laikomas iškastu.
+- progresas: kas 100000 bandymų išvedamas bandymų skaičius; po kasimo parodytas Nonce + Hash + Time + Attempts.
+- patikrinimas: `isChainValid()` tikrina prev hashus, ir patikrina, kad hash atitiktų difficulty ("000...").
+- difficulty: nustatomas paleidžiant `Blockchain(3)`. galima lengvai keisti.
 - pastaba v0.1: `txRoot` nėra tikras Merkle Root; naudojamas paprastas visų tx id sujungimo hash. tikras Merkle bus v0.2.
 
-## Blokų ir transakcijų kūrimas, kasimas, validacija
+## Blokų ir transakcijų kūrimas, kasimas, patikrinimas
 
 ### Transakcijų kūrimas
 1. Sugeneruojami 1000 vartotojų su `User(name, publicKey, balance)`
 2. publicKey = `hash(name + unique_salt)`
-3. balance - atsitiktinis [100..1 000 000]
+3. Balance - atsitiktinis [100..1 000 000]
 4. Sugeneruojamos 10000 transakcijų: `Transaction(from, to, amount)`
 5. Transaction ID automatiškai: `id = hash(from + to + amount + timestamp)`
 
@@ -114,13 +116,13 @@ while (true) {
 3. Blokas pridedamas į grandinę: `chain_.push_back(block)`
 4. Blokas išsaugomas į `blockchain_log.txt`
 
-### Validacija
+### Patikrinimas
 `isChainValid()` tikrina:
 - Ar dabartinis blokas `prevHash == previous.hash`
 - Ar blokas perhashintas teisingai: `hash(block.toString()) == block.hash`
 - Ar hash atitinka difficulty: `hash.substr(0, difficulty) == "000"`
 
-## Sprendimai
+## Mano sprendimai
 
 ### Custom hash funkcija
 - Pradžioje naudojau Base62, bet su difficulty=2 per 41M+ nonces nerado "00" pradžios, todėl pakeičiau į HEX 
@@ -135,10 +137,22 @@ while (true) {
 - Sesijos pradžioje: `date_utc` žymė
 - Bloko info: Version, Tx Root, Difficulty, Nonce, Prev Hash, Hash
 
-### MerkleTree pasiruošimas
+### MerkleTree pasiruošimas v0.2
 - Jau sukurta `MerkleTree` klasė su `from_leaves()` ir `root()`
 - v0.1 nenaudojama Block txRoot (naudojamas paprastas hash)
 - v0.2 tiesiog pakeisiu `txRoot = MerkleTree::from_leaves(txIds).root()`
+
+## Interaktyvi užklausų sistema 
+
+Po pagrindinės programos vykdymo vartotojui suteikiama galimybė užklausti ir gauti informaciją apie konkrečią transakciją ar bloką.
+
+### Funkcionalumas
+```
+Options:
+  1 - Query block by number
+  2 - Query transaction by ID
+  0 - Exit
+```
 
 ## Projekto veikimo demonstracija
 
@@ -162,16 +176,18 @@ Total coins in system: 501234567
 
 Generating ~10000 transactions...
 Generated 10000 transactions
-(Showing first 5 for brevity)
+All transactions saved to merkle_log.txt
 
 Transaction Pool (size: 10000)
 ----------------------------------------
+  Showing first 5 transactions:
   [1] e98f1cba... -> b1355516... : 65 coins
   [2] 78028d76... -> e98f1cba... : 67 coins
   [3] e98f1cba... -> b1355516... : 32 coins
   [4] 78028d76... -> 1d9e9c93... : 14 coins
   [5] 78028d76... -> 73138d67... : 100 coins
   ... and 9995 more
+  (See merkle_log.txt for all transactions)
 
 ============================================================
 Mining Blocks with Transactions
@@ -187,21 +203,48 @@ Block #1 mined!
 
 Block #1 added to chain with 100 transactions
 
-[... kartojasi ~100 bloku ...]
+[... 2 more blocks ...]
+
+============================================================
+Results
+============================================================
+
+Total mining time: 0.35 seconds
+Blocks mined: 3
+Transactions remaining in pool: 9760
+
+Final balance summary:
+  Total coins in system: 501234567
+  Balances updated for 1000 users
+  (Use Ledger::print() to see all individual balances)
 
 ==================================================
 BLOCKCHAIN STATISTICS
 ==================================================
-Total blocks  : 101
+Total blocks  : 4
 Difficulty    : 3 (hash starts with 000)
 Chain valid   : YES
 Average nonce : 2443.33
 ==================================================
-```
 
-### Bloko išklotinė
+Blockchain is VALID!
 
-```
+============================================================
+Query System
+============================================================
+
+You can now query blocks and transactions.
+
+Options:
+  1 - Query block by number
+  2 - Query transaction by ID
+  0 - Exit
+Choose option: 1
+Enter block number (0-3): 1
+
+============================================================
+BLOCK #1 DETAILS
+============================================================
 ----------------------------------------
 Block #1 (v2)
 Timestamp : 1761501491
@@ -225,15 +268,14 @@ Transaction
   Time: 1761501491
 ```
 
-## Ateities planai (v0.2)
+## TO DO (v0.2)
 
-- **Tikras Merkle Root**: vietoje paprasto hash naudosiu MerkleTree.root()
-- **Transakcijų verifikacija**: TxID hash tikrinimas, griežtesnis balansų tikrinimas
-- **Decentralizuotas kasimas**: 5 kandidatiniai blokai, ribota laiko (5s) arba bandymų kiekis
-- **Papildoma validacija**: pilna grandinės ir transakcijų verifikacija
+1. **Tikras Merkle Tree ir Merkle Root Hash**
+2. **Transakcijų verifikacija**
+3. **Decentralizuotas kasimo procesas**
+4. **Papildomas patikrinimas?**
 
 ---
 
 **Versija**: v0.1  
 **Data**: 2025-10-28  
-**Branch**: `v0.1`
