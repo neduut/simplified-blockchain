@@ -39,7 +39,7 @@ static string utc_now_str() {
 
 // i log faila pazymim sesijos pradzia su date_utc
 static void log_session_start() {
-    std::ofstream file("blockchain_log.txt", std::ios::app);
+    std::ofstream file("logs/blockchain_log.txt", std::ios::app);
     if (!file.is_open()) return;
     file << std::string(40, ' ') << "\n";
     file << std::string(40, '-') << "\n";
@@ -175,9 +175,9 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
     
     cout << "Generated " << pool.size() << " transactions\n";
     
-    // iraso visas transakcijas i merkle_log.txt
+    // iraso visas transakcijas i logs/merkle_log.txt
     const auto& allTxs = pool.getAll();
-    ofstream txLog("merkle_log.txt");
+    ofstream txLog("logs/merkle_log.txt");
     if (txLog.is_open()) {
         txLog << "==========================================================\n";
         txLog << "ALL TRANSACTIONS (Total: " << allTxs.size() << ")\n";
@@ -190,7 +190,7 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
             txLog << "    Amount : " << tx.getAmount() << " coins\n\n";
         }
         txLog.close();
-        cout << "All transactions saved to merkle_log.txt\n";
+        cout << "All transactions saved to logs/merkle_log.txt\n";
     }
     
     // konsolėje rodyti tik santrauką
@@ -207,7 +207,7 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
     if (allTxs.size() > 5) {
         cout << "  ... and " << (allTxs.size() - 5) << " more\n";
     }
-    cout << "  (See merkle_log.txt for all transactions)\n\n";
+    cout << "  (See logs/merkle_log.txt for all transactions)\n\n";
     
     // kasa blokus
     printHeader("Mining Blocks with Transactions");
@@ -257,7 +257,8 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
 
 int main() {
     try {
-        // pazymim sesijos pradzia log faile
+        // ensure logs folder, then pazymim sesijos pradzia log faile
+        ensure_logs_dir();
         log_session_start();
         
         // inicializuojam blockchain, pool ir users

@@ -114,7 +114,7 @@ while (true) {
 1. Pritaikomos transakcijos: `ledger.apply(tx)` kiekvienai (atnaujina balansus)
 2. Transakcijos pašalinamos iš TxPool
 3. Blokas pridedamas į grandinę: `chain_.push_back(block)`
-4. Blokas išsaugomas į `blockchain_log.txt`
+4. Blokas išsaugomas į `logs/blockchain_log.txt`
 
 ### Patikrinimas
 `isChainValid()` tikrina:
@@ -133,7 +133,7 @@ while (true) {
 - `canApply()` pre-check + `apply()` su underflow apsauga
 
 ### Logging
-- Kiekvienas blokas išsaugomas į `blockchain_log.txt` su pilnais headeriais
+- Kiekvienas blokas išsaugomas į `logs/blockchain_log.txt` su pilnais headeriais
 - Sesijos pradžioje: `date_utc` žymė
 - Bloko info: Version, Tx Root, Difficulty, Nonce, Prev Hash, Hash
 
@@ -176,7 +176,7 @@ Total coins in system: 501234567
 
 Generating ~10000 transactions...
 Generated 10000 transactions
-All transactions saved to merkle_log.txt
+All transactions saved to logs/merkle_log.txt
 
 Transaction Pool (size: 10000)
 ----------------------------------------
@@ -187,7 +187,7 @@ Transaction Pool (size: 10000)
   [4] 78028d76... -> 1d9e9c93... : 14 coins
   [5] 78028d76... -> 73138d67... : 100 coins
   ... and 9995 more
-  (See merkle_log.txt for all transactions)
+  (See logs/merkle_log.txt for all transactions)
 
 ============================================================
 Mining Blocks with Transactions

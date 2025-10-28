@@ -197,7 +197,7 @@ void Blockchain::printStatistics() const {
 
 // issaugojimas i faila
 void Blockchain::saveToFile(const Block& block) const {
-    std::ofstream file("blockchain_log.txt", std::ios::app);
+    std::ofstream file("logs/blockchain_log.txt", std::ios::app);
     if (!file.is_open()) return;
 
     file << "Block #" << block.getIndex() << "\n";
