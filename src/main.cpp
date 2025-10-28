@@ -78,16 +78,55 @@ void testSimpleBlocks(int difficulty, int numBlocks) {
     blockchain.printChain();
 }
 
+// query funkcijos menu
+void queryBlock(const Blockchain& blockchain) {
+    int blockNum;
+    cout << "Enter block number (0-" << blockchain.getChain().size() - 1 << "): ";
+    cin >> blockNum;
+    cin.ignore();
+    
+    const auto& chain = blockchain.getChain();
+    if (blockNum >= 0 && blockNum < (int)chain.size()) {
+        cout << "\n" << string(60, '=') << "\n";
+        cout << "BLOCK #" << blockNum << " DETAILS\n";
+        cout << string(60, '=') << "\n";
+        chain[blockNum].printBlock();
+    } else {
+        cout << "Invalid block number!\n";
+    }
+}
+
+void queryTransaction(const TxPool& pool) {
+    string txId;
+    cout << "Enter transaction ID (hash): ";
+    getline(cin, txId);
+    
+    const auto& allTxs = pool.getAll();
+    bool found = false;
+    for (const auto& tx : allTxs) {
+        if (tx.getId() == txId) {
+            cout << "\n" << string(60, '=') << "\n";
+            cout << "TRANSACTION DETAILS\n";
+            cout << string(60, '=') << "\n";
+            tx.print();
+            found = true;
+            break;
+        }
+    }
+    
+    if (!found) {
+        cout << "Transaction not found!\n";
+    }
+}
+
 // v0.1 Test: Blokai su transakcijomis
-void testTransactionBlocks() {
+void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& users) {
     printHeader("TEST v0.1: Transaction System");
     
-    Blockchain blockchain(3);
     Ledger ledger;
     
     // sukuria ~1000 vartotoju
     cout << "Generating ~1000 users...\n";
-    vector<User> users;
     random_device rd;
     mt19937 gen(rd());
     uniform_int_distribution<> balanceDist(100, 1000000);
@@ -103,9 +142,17 @@ void testTransactionBlocks() {
     cout << "Created " << users.size() << " users\n";
     cout << "Total coins in system: " << ledger.getTotalBalance() << "\n";
     
-    // sukuria transaction pool
-    TxPool pool;
+    // rodo pirmus 5 vartotojus kaip pavyzdi konsolej
+    cout << "\nSample users (first 5):\n";
+    cout << string(40, '-') << "\n";
+    for (size_t i = 0; i < min(size_t(5), users.size()); ++i) {
+        cout << "  " << users[i].getName() << " : " 
+             << users[i].getPublicKey().substr(0, 16) << "... : "
+             << users[i].getBalance() << " coins\n";
+    }
+    cout << "  ... and " << (users.size() - 5) << " more\n";
     
+    // sukuria transaction pool
     // generuoja ~10000 transakciju
     cout << "\nGenerating ~10000 transactions...\n";
     uniform_int_distribution<> userDist(0, users.size() - 1);
@@ -127,13 +174,29 @@ void testTransactionBlocks() {
     }
     
     cout << "Generated " << pool.size() << " transactions\n";
-    cout << "(Showing first 5 for brevity)\n";
     
-    // rodyti tik pirmas 5 transakcijas
-    size_t origSize = pool.size();
-    cout << "\nTransaction Pool (size: " << origSize << ")\n";
-    cout << string(40, '-') << "\n";
+    // iraso visas transakcijas i merkle_log.txt
     const auto& allTxs = pool.getAll();
+    ofstream txLog("merkle_log.txt");
+    if (txLog.is_open()) {
+        txLog << "==========================================================\n";
+        txLog << "ALL TRANSACTIONS (Total: " << allTxs.size() << ")\n";
+        txLog << "==========================================================\n\n";
+        for (size_t i = 0; i < allTxs.size(); ++i) {
+            const auto& tx = allTxs[i];
+            txLog << "[" << (i+1) << "] TX ID: " << tx.getId() << "\n";
+            txLog << "    From   : " << tx.getFrom() << "\n";
+            txLog << "    To     : " << tx.getTo() << "\n";
+            txLog << "    Amount : " << tx.getAmount() << " coins\n\n";
+        }
+        txLog.close();
+        cout << "All transactions saved to merkle_log.txt\n";
+    }
+    
+    // konsolėje rodyti tik santrauką
+    cout << "\nTransaction Pool (size: " << allTxs.size() << ")\n";
+    cout << string(40, '-') << "\n";
+    cout << "  Showing first 5 transactions:\n";
     for (size_t i = 0; i < min(size_t(5), allTxs.size()); ++i) {
         const auto& tx = allTxs[i];
         cout << "  [" << (i+1) << "] " 
@@ -141,10 +204,10 @@ void testTransactionBlocks() {
              << tx.getTo().substr(0, 8) << "... : "
              << tx.getAmount() << " coins\n";
     }
-    if (origSize > 5) {
-        cout << "  ... and " << (origSize - 5) << " more\n";
+    if (allTxs.size() > 5) {
+        cout << "  ... and " << (allTxs.size() - 5) << " more\n";
     }
-    cout << "\n";
+    cout << "  (See merkle_log.txt for all transactions)\n\n";
     
     // kasa blokus
     printHeader("Mining Blocks with Transactions");
@@ -174,8 +237,11 @@ void testTransactionBlocks() {
     cout << "Blocks mined: " << successfulBlocks << "\n";
     cout << "Transactions remaining in pool: " << pool.size() << "\n\n";
     
-    cout << "Final balances:\n";
-    ledger.print();
+    // rodyti tik santrauka, ne visus balansus
+    cout << "Final balance summary:\n";
+    cout << "  Total coins in system: " << ledger.getTotalBalance() << "\n";
+    cout << "  Balances updated for " << users.size() << " users\n";
+    cout << "  (Use Ledger::print() to see all individual balances)\n\n";
     
     printHeader("Blockchain Validation");
     blockchain.printStatistics();
@@ -193,41 +259,45 @@ int main() {
     try {
         // pazymim sesijos pradzia log faile
         log_session_start();
+        
+        // inicializuojam blockchain, pool ir users
+        Blockchain blockchain(3);
+        TxPool pool;
+        vector<User> users;
+        
         // test 1: transaction system
-        testTransactionBlocks();
+        testTransactionBlocks(blockchain, pool, users);
         
-        cout << "\n" << string(60, '-') << "\n\n";
+        // interaktyvus query meniu
+        printHeader("Query System");
+        cout << "You can now query blocks and transactions.\n\n";
         
-    // test 2: simple blocks (backward compatibility)
-        cout << "Press ENTER to test simple blocks (backward compatibility)...\n";
-        cin.get();
-    testSimpleBlocks(3, 3);
-
-    // test 3: merkle tree demo
-        cout << "\nPress ENTER to test Merkle Tree...\n";
-        cin.get();
-        printHeader("TEST v0.1: Merkle Tree Demo");
-        
-        // keletas fake tx id
-        vector<string> txIds = {
-            "tx001_abcdef1234567890",
-            "tx002_1234567890abcdef",
-            "tx003_fedcba0987654321",
-            "tx004_0987654321fedcba",
-            "tx005_aabbccddeeff1122"
-        };
-        
-        cout << "Sukuriamas Merkle Tree is " << txIds.size() << " transaction ID:\n";
-        for (size_t i = 0; i < txIds.size(); ++i) {
-            cout << "  [" << i << "] " << txIds[i] << "\n";
+        while (true) {
+            cout << "\nOptions:\n";
+            cout << "  1 - Query block by number\n";
+            cout << "  2 - Query transaction by ID\n";
+            cout << "  0 - Exit\n";
+            cout << "Choose option: ";
+            
+            int choice;
+            if (!(cin >> choice)) {
+                cin.clear();
+                cin.ignore(10000, '\n');
+                cout << "Invalid input! Please enter a number.\n";
+                continue;
+            }
+            cin.ignore();
+            
+            if (choice == 0) {
+                break;
+            } else if (choice == 1) {
+                queryBlock(blockchain);
+            } else if (choice == 2) {
+                queryTransaction(pool);
+            } else {
+                cout << "Invalid option!\n";
+            }
         }
-        cout << "\n";
-        
-        MerkleTree mt = MerkleTree::from_leaves(txIds);
-        mt.print();
-        
-        cout << "\nMerkle Root: " << mt.root() << "\n";
-        cout << "(Pastaba: Merkle Tree nera integruotas i Block txRoot - tai bus v0.2)\n";
         
     } catch (const exception& e) {
         cerr << "Error: " << e.what() << "\n";

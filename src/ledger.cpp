@@ -21,7 +21,7 @@ bool Ledger::canApply(const Transaction& tx) const {
 }
 
 bool Ledger::apply(const Transaction& tx) {
-    // apsauga nuo underflow: jei balanso neuztenka - nieko nedarom
+    // apsauga nuo underflow, jei balanso neuztenka - nieko nedarom
     uint64_t senderBalance = getBalance(tx.getFrom());
     if (senderBalance < tx.getAmount()) {
         return false;

@@ -22,6 +22,7 @@ public:
     // getters
     size_t getChainSize() const { return chain_.size(); }
     const Block& getBlock(size_t index) const { return chain_.at(index); }
+    const std::vector<Block>& getChain() const { return chain_; }
     int getDifficulty() const { return difficulty_; }
 
 private:
