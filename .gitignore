@@ -30,15 +30,15 @@ build.ninja
 ToDo.txt
 .zip
 
-
 analysis/md5_comparison_results.txt
 src/md5.cpp
 include/md5.h
 
-# Project logs (store folder but ignore contents)
 logs/*
 !logs/.gitkeep
 
-# Old log files (pre-logs/ migration)
 blockchain_log.txt
 merkle_log.txt
+
+
+

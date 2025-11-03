@@ -272,9 +272,9 @@ Block #1 added to chain with 100 transactions
 Results
 ============================================================
 
-Total mining time: 0.35 seconds
-Blocks mined: 3
-Transactions remaining in pool: 9760
+Total mining time: 0.63 seconds
+Blocks mined: 5
+Transactions remaining in pool: 9500
 
 Final balance summary:
   Total coins in system: 501234567
@@ -284,10 +284,10 @@ Final balance summary:
 ==================================================
 BLOCKCHAIN STATISTICS
 ==================================================
-Total blocks  : 4
+Total blocks  : 6
 Difficulty    : 3 (hash starts with 000)
 Chain valid   : YES
-Average nonce : 2443.33
+Average nonce : 630.20
 ==================================================
 
 Blockchain is VALID!
@@ -303,13 +303,13 @@ Options:
   2 - Query transaction by ID
   0 - Exit
 Choose option: 1
-Enter block number (0-3): 1
+Enter block number (0-5): 1
 
 ============================================================
 BLOCK #1 DETAILS
 ============================================================
 ----------------------------------------
-Block #1 (v2)
+Block #1 
 Timestamp : 1761501491
 Tx Count  : 100
 Tx Root   : c2304964b1f8396b7d2f4a1e0c9b8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c
@@ -348,15 +348,15 @@ Mining 5 candidates competitively...
   Nonce: 7083 | Hash: 000330f51b6071d6... | Time: 0.318 s
 Block #1 added to chain with 100 transactions
 
-... [toliau 2 blokai iškasami panašiai] ...
+... [toliau dar 3 blokai iškasami panašiai] ...
 
 ============================================================
 Results
 ============================================================
 
-Total mining time: 4.95 seconds
-Blocks mined: 3
-Transactions remaining in pool: 9700
+Total mining time: 0.63 seconds
+Blocks mined: 5
+Transactions remaining in pool: 9500
 
 ============================================================
 Blockchain Validation
@@ -365,10 +365,10 @@ Blockchain Validation
 ==================================================
 BLOCKCHAIN STATISTICS
 ==================================================
-Total blocks  : 4
+Total blocks  : 6
 Difficulty    : 3 (hash starts with 000)
 Chain valid   : YES
-Average nonce : 6578.00
+Average nonce : 630.20
 ==================================================
 ```
 

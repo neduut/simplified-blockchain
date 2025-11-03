@@ -225,7 +225,7 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
     printHeader("Mining Blocks with Decentralized Process");
     
     Timer totalTimer;
-    int blocksToMine = 3;
+    int blocksToMine = 5;
     int successfulBlocks = 0;
     
     for (int i = 0; i < blocksToMine; ++i) {
