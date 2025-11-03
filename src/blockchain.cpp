@@ -200,7 +200,7 @@ bool Blockchain::formBlockFromPool(TxPool& pool, Ledger& ledger, size_t nTx) {
         }
         
         // tikrina balansa
-        if (ledger.canApplyWithFee(tx, TX_FEE)) {
+        if (ledger.canApplyWithFeeUTXO(tx, TX_FEE)) {
             validTx.push_back(tx);
             toRemoveIds.push_back(tx.getId());
         } else {
@@ -235,7 +235,7 @@ bool Blockchain::formBlockFromPool(TxPool& pool, Ledger& ledger, size_t nTx) {
     
     // pritaikom ledger
     for (const auto& tx : validTx) {
-        ledger.applyWithFee(tx, FEE_COLLECTOR, TX_FEE);
+        ledger.applyWithFeeUTXO(tx, FEE_COLLECTOR, TX_FEE);
     }
     
     // istrinam is pool
@@ -306,7 +306,7 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
                     toRemoveIds.push_back(tx.getId());
                     continue;
                 }
-                if (ledger.canApplyWithFee(tx, TX_FEE)) {
+                if (ledger.canApplyWithFeeUTXO(tx, TX_FEE)) {
                     validTx.push_back(tx);
                     toRemoveIds.push_back(tx.getId());
                 }
@@ -332,7 +332,7 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
             return false;
         }
         
-        std::cout << "\nMining " << candidates.size() << " candidates competitively...\n";
+    std::cout << "\nMining " << candidates.size() << " candidates competitively...\n";
         
         // kasa konkuruojancius blokus 
         Timer roundTimer;
@@ -365,7 +365,7 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
             
             // laimetojas
             for (const auto& tx : candidateTxSets[winner]) {
-                ledger.applyWithFee(tx, FEE_COLLECTOR, TX_FEE);
+                ledger.applyWithFeeUTXO(tx, FEE_COLLECTOR, TX_FEE);
             }
             
             pool.eraseByIds(candidateRemoveIds[winner]);
@@ -439,7 +439,7 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
                     toRemoveIds.push_back(tx.getId());
                     continue;
                 }
-                if (ledger.canApply(tx)) {
+                if (ledger.canApplyWithFeeUTXO(tx, TX_FEE)) {
                     validTx.push_back(tx);
                     toRemoveIds.push_back(tx.getId());
                 }
@@ -508,7 +508,7 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
                      << bestTime << " s\n";
             
             for (const auto& tx : candidateTxSets[winIdx]) {
-                ledger.applyWithFee(tx, FEE_COLLECTOR, TX_FEE);
+                ledger.applyWithFeeUTXO(tx, FEE_COLLECTOR, TX_FEE);
             }
             
             pool.eraseByIds(candidateRemoveIds[winIdx]);

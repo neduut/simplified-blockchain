@@ -8,6 +8,18 @@
 class Ledger {
 private:
     std::unordered_map<std::string, uint64_t> balances_;
+    // UTXO mode
+    struct UTXO {
+        std::string id;         // unique id (txid:index or GENESIS_owner)
+        std::string owner;      // public key
+        uint64_t amount{0};
+        bool spent{false};
+    };
+    bool utxoEnabled_ { false };
+    // utxo id -> utxo
+    std::unordered_map<std::string, UTXO> utxos_;
+    // owner -> list of utxo ids for quick selection
+    std::unordered_map<std::string, std::vector<std::string>> ownerIndex_;
 
 public:
     // konstruktorius
@@ -47,4 +59,24 @@ public:
 
     // display
     void print() const;
+
+    // ===== UTXO mode API =====
+    void enableUTXO(bool enabled = true) noexcept { utxoEnabled_ = enabled; }
+    bool isUTXOEnabled() const noexcept { return utxoEnabled_; }
+    // Initialize UTXO set from current balances (one UTXO per account)
+    void initializeUTXOFromBalances();
+
+    // Selection result for spending
+    struct UTXOSelection {
+        std::vector<std::string> inputs; // utxo ids used
+        uint64_t totalIn{0};
+        uint64_t change{0};
+    };
+
+    // Deterministically select UTXOs to cover 'needed' amount
+    bool selectUTXO(const std::string& owner, uint64_t needed, UTXOSelection& outSel) const;
+
+    // UTXO-based checks and application with fee
+    bool canApplyWithFeeUTXO(const Transaction& tx, uint64_t fee) const;
+    bool applyWithFeeUTXO(const Transaction& tx, const std::string& feeCollector, uint64_t fee);
 };

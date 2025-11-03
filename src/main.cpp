@@ -153,6 +153,11 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
     
     cout << "Created " << users.size() << " users\n";
     cout << "Total coins in system: " << ledger.getTotalBalance() << "\n";
+
+    // Optional: enable UTXO mode in ledger
+    ledger.enableUTXO(true);
+    ledger.initializeUTXOFromBalances();
+    cout << "UTXO mode enabled (initialized from account balances).\n";
     
     // rodo pirmus 5 vartotojus kaip pavyzdi konsolej
     cout << "\nSample users (first 5):\n";

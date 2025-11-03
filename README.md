@@ -151,6 +151,14 @@ while (true) {
 - Paprastesnis implementuoti
 - `canApply()` pre-check + `apply()` su underflow apsauga
 
+### UTXO modelis 
+- Įdiegta alternatyvi UTXO realizacija Ledger'yje (šalia Account modelio).
+- Inicializacija: po vartotojų sukūrimo sugeneruojamas po vieną GENESIS UTXO kiekvienam vartotojui pagal pradinį balansą.
+- Atranka: deterministinė „mažiausias-pirmas“ (smallest-first) UTXO atranka padengti sumai `amount + fee`.
+- Pritaikymas: sunaudojami įėjimai, sukuriami išėjimai: gavėjui (amount), `MINER_FEE` (fee) ir grąža siuntėjui (change).
+- Balansų santrauka: `balances_` sinchronizuojama su UTXO rezultatu, bendra monetų suma nekinta.
+- Įjungimas: programoje aktyvuota pagal nutylėjimą (`ledger.enableUTXO(true); ledger.initializeUTXOFromBalances();`).
+
 ### Logging į atskirą logs/ aplanką
 - Kiekvienas blokas išsaugomas į `logs/blockchain_log.txt` su pilnais headeriais
 - Visos transakcijos išsaugomos į `logs/merkle_log.txt`
@@ -419,7 +427,8 @@ Transaction
 - Bendras blockchain veikimo principo supratimas
 - Patarimai dėl projektavimo
 - OOP gerųjų praktikų patarimai
-- Paralelinio kasimo įgyvendinimas
+- Pagalba su paralelinio kasimo įgyvendinimu
+- Pagalba su UTXO realizavimu
 - Išvedimo į konsolę formavimas
 - Pagalba su Merkle tree įgyvendinimu
 - JSON eksportas
