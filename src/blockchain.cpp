@@ -162,6 +162,12 @@ bool Blockchain::isChainValid() const {
             std::cout << "Invalid chain: difficulty not met at block " << i << "\n";
             return false;
         }
+
+        // v0.2: papildoma validacija — patikriname Merkle Root atitikimą
+        if (curr.getVersion() == 2 && !curr.verifyTxRoot()) {
+            std::cout << "Invalid chain: txRoot mismatch at block " << i << "\n";
+            return false;
+        }
     }
     return true;
 }

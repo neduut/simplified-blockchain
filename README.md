@@ -1,4 +1,4 @@
-# Simplified Blockchain v0.1
+# Simplified Blockchain v0.2
 
 Paprastas blockchain projektas su Proof-of-Work algoritmu, transakcijomis ir balansų sistema.
 
@@ -10,8 +10,7 @@ v0.1 versija realizuoja centralizuotą blokų grandinę su:
 - Account model balansų skaičiavimu ir patikrinimu
 - Nuosava hash funkcija iš praeito projekto
 - Blokų grandinės patikrinimu
-- Interaktyvi užklausų sistema - konkreti info
-- Į konsolę dėl aiškumo viskas vedama anglų kalba
+- Interaktyvus užklausų menu
 
 Programa automatiškai sugeneruos 1000 vartotojų, 10000 transakcijų, formuos blokus su po 100 atsitiktinių transakcijų.
 
@@ -75,12 +74,12 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 - hash funkcija: custom `generate_hash()` (256-bit HEX). išvedime rodau pilnus hash'us.
 - hash'inami laukai:
 	- v1 blokas: index, timestamp, data, prevHash, nonce
-	- v2 blokas: index, timestamp, version, difficulty, txRoot (v0.1 paprastas visų tx id hash), prevHash, nonce
+  - v2 blokas: index, timestamp, version, difficulty, txRoot (tikras Merkle Root iš Tx ID), prevHash, nonce
 - kasimas: didinu nonce nuo 0; po kiekvieno bandymo skaičiuoju `hash(toString())`, kai hash prasideda reikiamu kiekiu nulių, blokas laikomas iškastu.
 - progresas: kas 100000 bandymų išvedamas bandymų skaičius; po kasimo parodytas Nonce + Hash + Time + Attempts.
 - patikrinimas: `isChainValid()` tikrina prev hashus, ir patikrina, kad hash atitiktų difficulty ("000...").
 - difficulty: nustatomas paleidžiant `Blockchain(3)`. galima lengvai keisti.
-- pastaba v0.1: `txRoot` nėra tikras Merkle Root; naudojamas paprastas visų tx id sujungimo hash. tikras Merkle bus v0.2.
+- v0.2: `txRoot` yra tikras Merkle Root (v0.1 buvo paprastas visų Tx ID sujungimo hash).
 
 ## Blokų ir transakcijų kūrimas, kasimas, patikrinimas
 
@@ -95,7 +94,7 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 1. Iš TxPool pasirenkamos ~100 atsitiktinių transakcijų
 2. Kiekviena validuojama per `Ledger::canApply()` (ar sender turi pakankamai)
 3. Valid transakcijos įdedamos į naują `Block(index, validTx, prevHash, difficulty)`
-4. Block konstruktorius automatiškai skaičiuoja `txRoot = hash(concat(tx.id))`
+4. Block konstruktorius automatiškai skaičiuoja `txRoot = MerkleRoot(tx.id)` (jei lygis nelyginis — dubliuojamas paskutinis lapas)
 
 ### Kasimas (PoW)
 ```cpp
@@ -121,6 +120,7 @@ while (true) {
 - Ar dabartinis blokas `prevHash == previous.hash`
 - Ar blokas perhashintas teisingai: `hash(block.toString()) == block.hash`
 - Ar hash atitinka difficulty: `hash.substr(0, difficulty) == "000"`
+- Jei blokas v2: perskaičiuoja Merkle Root iš Tx ID ir patikrina, kad jis sutaptų su saugomu `txRoot` (nesutapus – grandinė laikoma negaliojančia)
 
 ## Mano sprendimai
 
@@ -137,14 +137,15 @@ while (true) {
 - Sesijos pradžioje: `date_utc` žymė
 - Bloko info: Version, Tx Root, Difficulty, Nonce, Prev Hash, Hash
 
-### MerkleTree pasiruošimas v0.2
-- Jau sukurta `MerkleTree` klasė su `from_leaves()` ir `root()`
-- v0.1 nenaudojama Block txRoot (naudojamas paprastas hash)
-- v0.2 tiesiog pakeisiu `txRoot = MerkleTree::from_leaves(txIds).root()`
+### MerkleTree (v0.2)
+ - Patikrinimas: `Block::recomputeTxRoot()` ir `Block::verifyTxRoot()` leidžia perskaičiuoti ir sulyginti Merkle Root su išsaugotu `txRoot`. Tai padeda aptikti neatitikimus ir gerina validaciją.
 
-## Interaktyvi užklausų sistema 
+## Interaktyvus užklausų menu
 
-Po pagrindinės programos vykdymo vartotojui suteikiama galimybė užklausti ir gauti informaciją apie konkrečią transakciją ar bloką.
+Po pagrindinės programos vykdymo vartotojui suteikiama galimybė užklausti ir gauti informaciją apie konkrečią transakciją ar bloką. 
+
+Į konsolę dėl aiškumo viskas vedama anglų kalba.
+
 
 ### Funkcionalumas
 ```
@@ -277,5 +278,12 @@ Transaction
 
 ---
 
-**Versija**: v0.1  
-**Data**: 2025-10-28  
+# Programos versijos
+
+Kiekviena versija išsamiai aprašyta jos `README.md` faile.
+
+## v0.1
+lalala
+
+## v0.2
+lalala

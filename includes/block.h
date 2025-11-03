@@ -32,6 +32,12 @@ public:
     void setHash(const std::string& hash) { hash_ = hash; }
     void setTxRoot(const std::string& txRoot) { txRoot_ = txRoot; }
 
+    // v0.2: diagnostika/validacija
+    // Perskaičiuoja Merkle Root iš dabartinių transakcijų ID
+    std::string recomputeTxRoot() const;
+    // Patikrina, ar saugomas txRoot_ sutampa su perskaičiuotu
+    bool verifyTxRoot() const;
+
 private:
     int index_;
     std::time_t timestamp_;

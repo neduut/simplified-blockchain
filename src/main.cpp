@@ -12,6 +12,9 @@
 #include <random>
 #include <fstream>
 #include <sstream>
+#ifdef _WIN32
+#include <direct.h>
+#endif
 
 using namespace std;
 
@@ -45,6 +48,15 @@ static void log_session_start() {
     file << std::string(40, '-') << "\n";
     file << "date_utc : " << utc_now_str() << "\n";
     file << std::string(40, '-') << "\n";
+}
+
+// sukuriame logs katalogą jei jo nėra (Windows)
+static void ensure_logs_dir() {
+#ifdef _WIN32
+    _mkdir("logs");
+#else
+    // galėtume pridėti POSIX mkdir, bet projekte fokusuojamės į Windows
+#endif
 }
 
 // paprasti blokai su data

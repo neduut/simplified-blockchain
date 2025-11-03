@@ -1,5 +1,6 @@
 #include "block.h"
 #include "ownHash.h"
+#include "merkle.h"
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -28,12 +29,27 @@ Block::Block(int index, const std::vector<Transaction>& transactions,
     , difficulty_(difficulty)
     , transactions_(transactions) {
     
-    // generuojam txroot - visu tx id hash
-    std::ostringstream oss;
+    // v0.2: generuoja tikra Merkle Root is transakciju ID
+    std::vector<std::string> leaves;
+    leaves.reserve(transactions_.size());
     for (const auto& tx : transactions_) {
-        oss << tx.getId();
+        leaves.push_back(tx.getId());
     }
-    txRoot_ = generate_hash(oss.str());
+    txRoot_ = MerkleTree::from_leaves(leaves).root();
+}
+
+// v0.2: tikrinimas
+std::string Block::recomputeTxRoot() const {
+    if (version_ != 2) return std::string();
+    std::vector<std::string> leaves;
+    leaves.reserve(transactions_.size());
+    for (const auto& tx : transactions_) leaves.push_back(tx.getId());
+    return MerkleTree::from_leaves(leaves).root();
+}
+
+bool Block::verifyTxRoot() const {
+    if (version_ != 2) return true; // v0.1 neturi txRoot
+    return txRoot_ == recomputeTxRoot();
 }
 
 std::string Block::toString() const {
