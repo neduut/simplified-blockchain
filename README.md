@@ -12,6 +12,8 @@ Projektas realizuoja blokų grandinę su:
 - Blokų grandinės patikrinimu
 - Fiksuotu transakcijų mokesčiu (1 moneta už transakciją), kredituojamu į MINER_FEE sąskaitą
 - Interaktyvus užklausų menu
+ - JSON eksportu į `logs/blockchain_export.json`
+ - (Pasirenkamai) UTXO modeliu greta Account modelio
 
 Programa automatiškai sugeneruos 1000 vartotojų, 10000 transakcijų, formuos blokus su po 100 atsitiktinių transakcijų.
 
@@ -32,6 +34,9 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 - `formBlockFromPool()` - formuoja bloką iš transaction pool
 - `isChainValid()` - validuoja visą grandinę (prev hash, rehash, difficulty)
 - `printChain()`, `printStatistics()` - vizualizacija
+ - `mineCandidateBlocksParallel()` ir `mineCandidateBlocks()` - decentralizuotas (paralelinis / konkurencinis) kasimas su kandidatais
+ - `printDetailedStatistics()` - supaprastinta kasimo statistika (Mining Times)
+ - `exportToJson(filename)` - grandinės eksportas į JSON (logs/)
 
 **Transaction** (`transaction.h/cpp`)
 - Saugo transakcijos duomenis: from, to, amount, timestamp
@@ -48,6 +53,9 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 - `canApply()` - tikrina ar vartotojas turi pakankamai lėšų
 - `apply()` - pritaiko transakciją (atima iš sender, prideda receiver)
 - Apsauga nuo underflow (uint64_t)
+ - Mokesčiai: `canApplyWithFee(tx, fee)`, `applyWithFee(tx, feeCollector, fee)`
+ - (Pasirenkamai) UTXO režimas: `enableUTXO()`, `initializeUTXOFromBalances()`,
+   `canApplyWithFeeUTXO(tx, fee)`, `applyWithFeeUTXO(tx, feeCollector, fee)`
 
 **User** (`user.h/cpp`)
 - Vartotojo duomenys: name, publicKey, balance
@@ -207,7 +215,7 @@ Projektas naudoja modernius C++17 standarto principus:
 **Enkapsuliacija**:
 - Visi duomenų laukai `private`
 - Prieiga tik per getterius/setterius
-- Vidiniai helper metodai (`mineBlockWithTimeLimit`, `getLastBlockHash`) - `private`
+ - Vidiniai helper metodai (`mineBlockWithTimeLimit`, `mineBlockWithLimits`, `mineBlockWithTimeLimitStop`, `getLastBlockHash`) - `private`
 
 ### Transakcijų mokestis (fees)
 - Fiksuotas mokestis: `TX_FEE = 1` moneta už kiekvieną transakciją.
