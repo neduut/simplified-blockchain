@@ -10,6 +10,7 @@ Projektas realizuoja blokų grandinę su:
 - Account model balansų skaičiavimu ir patikrinimu
 - Nuosava hash funkcija iš praeito projekto
 - Blokų grandinės patikrinimu
+- Fiksuotu transakcijų mokesčiu (1 moneta už transakciją), kredituojamu į MINER_FEE sąskaitą
 - Interaktyvus užklausų menu
 
 Programa automatiškai sugeneruos 1000 vartotojų, 10000 transakcijų, formuos blokus su po 100 atsitiktinių transakcijų.
@@ -200,6 +201,17 @@ Projektas naudoja modernius C++17 standarto principus:
 - Prieiga tik per getterius/setterius
 - Vidiniai helper metodai (`mineBlockWithTimeLimit`, `getLastBlockHash`) - `private`
 
+### Transakcijų mokestis (fees)
+- Fiksuotas mokestis: `TX_FEE = 1` moneta už kiekvieną transakciją.
+- Tikrinimas: `Ledger::canApplyWithFee(tx, fee)` – reikalauja, kad siuntėjas turėtų `amount + fee`.
+- Pritaikymas: `Ledger::applyWithFee(tx, feeCollector, fee)` – suma `amount` pervedama gavėjui, `fee` – `MINER_FEE`.
+- Rezultatuose rodoma eilutė: `Miner fees collected (MINER_FEE): X coins`.
+- Monetų suma sistemoje nesikeičia (mokestis tik perskirstomas).
+
+### JSON eksportas
+- Visa grandinė eksportuojama į `logs/blockchain_export.json` su blokų ir transakcijų laukais.
+- Tai leidžia lengvai analizuoti, vizualizuoti ir patikrinti blockchain duomenis.
+
 ## Interaktyvus užklausų menu
 
 Po pagrindinės programos vykdymo vartotojui suteikiama galimybė užklausti ir gauti informaciją apie konkrečią transakciją ar bloką. 
@@ -281,6 +293,8 @@ Final balance summary:
   Balances updated for 1000 users
   (Use Ledger::print() to see all individual balances)
 
+Miner fees collected (MINER_FEE): 500 coins
+
 ==================================================
 BLOCKCHAIN STATISTICS
 ==================================================
@@ -289,6 +303,21 @@ Difficulty    : 3 (hash starts with 000)
 Chain valid   : YES
 Average nonce : 630.20
 ==================================================
+
+============================================================
+DETAILED MINING STATISTICS
+============================================================
+Mining Times:
+------------------------------------------------------------
+Block # 0 | 0.166s (9987 attempts)
+Block # 1 | 0.318s (7084 attempts)
+Block # 2 | 0.274s (6123 attempts)
+Block # 3 | 0.201s (5039 attempts)
+Block # 4 | 0.145s (4120 attempts)
+Block # 5 | 0.189s (4980 attempts)
+------------------------------------------------------------
+
+Blockchain exported to logs/blockchain_export.json
 
 Blockchain is VALID!
 
@@ -309,7 +338,7 @@ Enter block number (0-5): 1
 BLOCK #1 DETAILS
 ============================================================
 ----------------------------------------
-Block #1 
+Block #1 (parallel)
 Timestamp : 1761501491
 Tx Count  : 100
 Tx Root   : c2304964b1f8396b7d2f4a1e0c9b8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c
@@ -330,7 +359,7 @@ Mining Blocks with Decentralized Process
 
 ========== Mining Block #1 ==========
 
-=== Decentralized Mining: 5 candidates ===
+=== Parallel Decentralized Mining: 5 candidates ===
 Time limit per round: 5.000 seconds
 
 --- Mining Round #1 ---
@@ -342,7 +371,7 @@ Candidate #3: 100 transactions
 Candidate #4: 100 transactions
 Candidate #5: 100 transactions
 
-Mining 5 candidates competitively...
+Mining 5 candidates in parallel...
 
 *** Candidate #1 WON! ***
   Nonce: 7083 | Hash: 000330f51b6071d6... | Time: 0.318 s
@@ -357,6 +386,8 @@ Results
 Total mining time: 0.63 seconds
 Blocks mined: 5
 Transactions remaining in pool: 9500
+
+Miner fees collected (MINER_FEE): 500 coins
 
 ============================================================
 Blockchain Validation
@@ -383,12 +414,19 @@ Transaction
   Time: 1761501491
 ```
 
-## AI pagalba
+## AI pagalba 
 
-1. `README.md` generavimas
-2. Blockchain veikimo principo supratimas
-3. Konsolės išvedimo formavimas
-
+- Bendras blockchain veikimo principo supratimas
+- Patarimai dėl projektavimo
+- OOP gerųjų praktikų patarimai
+- Paralelinio kasimo įgyvendinimas
+- Išvedimo į konsolę formavimas
+- Pagalba su Merkle tree įgyvendinimu
+- JSON eksportas
+- Transakcijų mokesčio integracija
+- Pagalba su kodo klaidom
+- Kodo peržiūra ir patarimai
+- `README.md` generavimas
 
 ---
 
@@ -397,7 +435,25 @@ Transaction
 Kiekviena versija išsamiai aprašyta jos `README.md` faile.
 
 ## v0.1
-lalala
+
+- Proof-of-Work kasimas su pastovia difficulty=3 (hash pradžia „000“)
+- Blokų formatas: v1 (paprasti duomenys) ir v2 (transakcijos, Difficulty, tikras Merkle Root)
+- Pritaikyta nuosava 256-bit HEX hash funkcija (iš praeito projekto)
+- ~1000 vartotojų ir ~10000 transakcijų generavimas
+- Transaction Pool ir blokų formavimas iš ~100 transakcijų
+- Ledger su Account modeliu (`canApply`, `apply`) ir underflow apsauga
+- Grandinės validacija: `prevHash`, perhashinimas, difficulty ir Merkle Root tikrinimas
+- Log'ai: `logs/blockchain_log.txt` (blokai) ir `logs/merkle_log.txt` (transakcijos)
+- Interaktyvus užklausų meniu (blokų ir transakcijų paieška)
+
 
 ## v0.2
-lalala
+- Paralelinis (decentralizuotas) kasimas su 5 kandidatais:
+  - kiekvienas kandidatas kasamas atskirame threade, naudojami `stopFlag` ir `winner`
+  - pirmas suradęs sprendimą sustabdo kitus; blokai konsolėje žymimi „Block #N (parallel)“
+- Transakcijų mokestis: fiksuotas `TX_FEE = 1` moneta, kredituojamas į `MINER_FEE` sąskaitą
+- JSON eksportas visos grandinės į `logs/blockchain_export.json`
+- Smulkūs patobulinimai ir pataisymai:
+  - užfiksuojama laimėtojo statistika (genesis + laimėję kandidatai)
+  - sutvarkyti pagalbiniai kasimo metodai (`mineBlockWithTimeLimit`, `mineBlockWithLimits`)
+  - aiškesnė konsolės išvestis su išsamia kasimo statistika 
