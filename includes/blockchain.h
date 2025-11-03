@@ -9,6 +9,16 @@
 class Blockchain {
 public:
     explicit Blockchain(int difficulty);
+    
+    // Rule of Five: isjungia kopijavima
+    Blockchain(const Blockchain&) = delete;
+    Blockchain& operator=(const Blockchain&) = delete;
+    
+    // move 
+    Blockchain(Blockchain&&) noexcept = default;
+    Blockchain& operator=(Blockchain&&) noexcept = default;
+    
+    ~Blockchain() = default;
 
     // simple block
     void addBlock(const std::string& data);
@@ -16,12 +26,12 @@ public:
     // block su transakcijom is pool
     bool formBlockFromPool(TxPool& pool, Ledger& ledger, size_t nTx = 100);
     
-    // v0.2: decentralizuotas kasimas su kandidatiniais blokais (sekvencinis)
+    // decentralizuotas kasimas su kandidatiniais blokais 
     bool mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx = 100, 
                              int numCandidates = 5, double timeLimitSec = 5.0,
                              unsigned long long attemptsLimit = 0); // 0 = neribota
     
-    // Papildomas: paralelinis kandidatų kasimas (su threads)
+    // paralelinis kandidatu kasimas 
     bool mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_t nTx = 100, 
                                       int numCandidates = 5, double timeLimitSec = 5.0,
                                       unsigned long long attemptsLimit = 0);
@@ -30,20 +40,20 @@ public:
     void printChain() const;
     void printStatistics() const;
     
-    // getters
-    size_t getChainSize() const { return chain_.size(); }
+    // getters 
+    size_t getChainSize() const noexcept { return chain_.size(); }
     const Block& getBlock(size_t index) const { return chain_.at(index); }
-    const std::vector<Block>& getChain() const { return chain_; }
-    int getDifficulty() const { return difficulty_; }
+    const std::vector<Block>& getChain() const noexcept { return chain_; }
+    int getDifficulty() const noexcept { return difficulty_; }
 
 private:
     void mineBlock(Block& block);
     
-    // v0.2: kasimas su laiko limitu (grąžina true jei iškastu, false jei per lėtas)
+    // kasimas su laiko limitu (graziina true jei iskasa, false jei per letas)
     bool mineBlockWithTimeLimit(Block& block, double timeLimitSec, unsigned long long& finalNonce);
-    // v0.2: kasimas su bandymų limitu (arba laiko, jei timeLimitSec > 0)
+    // kasimas su bandymu limitu (arba laiko, jei timeLimitSec > 0)
     bool mineBlockWithLimits(Block& block, double timeLimitSec, unsigned long long attemptsLimit, unsigned long long& finalNonce);
-    // v0.2+: kasimas su laiko/bandymų limitu ir bendru stop signalu (naudojama paraleliniam kasimui)
+    // kasimas su laiko/bandymu limitu ir bendru stop signalu (naudojama paraleliniam kasimui)
     bool mineBlockWithTimeLimitStop(Block& block, double timeLimitSec, unsigned long long attemptsLimit, 
                                      unsigned long long& finalNonce, std::atomic<bool>& stopFlag);
     

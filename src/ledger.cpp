@@ -6,7 +6,7 @@ void Ledger::setBalance(const std::string& publicKey, uint64_t balance) {
     balances_[publicKey] = balance;
 }
 
-uint64_t Ledger::getBalance(const std::string& publicKey) const {
+uint64_t Ledger::getBalance(const std::string& publicKey) const noexcept {
     auto it = balances_.find(publicKey);
     if (it != balances_.end()) {
         return it->second;

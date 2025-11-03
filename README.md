@@ -166,8 +166,39 @@ while (true) {
 - Kiekvienas kandidatas kasamas atskirame threade (`std::thread`) su bendru `std::atomic<bool> stopFlag` ir `std::atomic<int> winner`.
 - Pirmasis suradęs tinkamą hash'ą nustato `winner` ir pakelia `stopFlag`, kiti thread'ai nustoja kasti.
 - Privalumai: žymiai trumpesnis raundų laikas ir realesnė konkurencijos imitacija.
-- Įjungimas: `src/main.cpp` keisti `mineCandidateBlocks(...)` į `mineCandidateBlocksParallel(...)`.
-- Pagrindinė užduoties versija (`mineCandidateBlocks`) kasa sekvenciškai (po vieną kandidatą, pirmas laimėtojas sustabdo).
+- Pagrindinė programos versija naudoja šį paralelinio kasimo variantą (`main.cpp`, eilutė ~239).
+
+### Gerosios OOP praktikos
+Projektas naudoja modernius C++17 standarto principus:
+
+**Rule of Five/Zero**:
+- Visos klasės turi aiškiai apibrėžtą kopijavimo/perkėlimo semantiką
+- `Blockchain`, `Timer` - išjungtas kopijavimas (per dideli objektai / unique per scope)
+- `Block`, `Transaction`, `User`, `Ledger`, `TxPool` - default kopijavimas/perkėlimas (naudoja tik STL konteinerius)
+- Move konstruktoriai ir operatoriai pažymėti `noexcept`
+
+**Const correctness**:
+- Visi getteriai grąžina `const&` (string, vector) vietoj kopijų - efektyviau
+- Metodai, kurie nekeičia būsenos, pažymėti `const`
+- Read-only operacijos pažymėtos `const noexcept` - optimizacijos ir saugumo garantija
+
+**Explicit konstruktoriai**:
+- `Blockchain(int difficulty)` - `explicit` apsaugo nuo netikėto konvertavimo
+
+**RAII (Resource Acquisition Is Initialization)**:
+- `Timer` klasė automatiškai matuoja laiką nuo sukūrimo
+- STL konteineriai (`vector`, `unordered_map`) automatiškai tvarko atmintį
+- Nėra manual `new/delete` - viskas tvarkoma automatiškai
+
+**Noexcept garantijos**:
+- Visi getteriai: `noexcept` - garantuoja, kad neįvyks exception
+- Move operacijos: `noexcept` - leidžia STL optimizacijas (pvz., `std::vector` realokacija)
+- Paprastos operacijos (`size()`, `empty()`, `clear()`) - `noexcept`
+
+**Enkapsuliacija**:
+- Visi duomenų laukai `private`
+- Prieiga tik per getterius/setterius
+- Vidiniai helper metodai (`mineBlockWithTimeLimit`, `getLastBlockHash`) - `private`
 
 ## Interaktyvus užklausų menu
 

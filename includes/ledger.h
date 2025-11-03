@@ -12,12 +12,19 @@ private:
 public:
     // konstruktorius
     Ledger() = default;
+    
+    // Rule of Five: default (naudoja tik std::unordered_map)
+    Ledger(const Ledger&) = default;
+    Ledger& operator=(const Ledger&) = default;
+    Ledger(Ledger&&) noexcept = default;
+    Ledger& operator=(Ledger&&) noexcept = default;
+    ~Ledger() = default;
 
     // nustatyti pradini balansa
     void setBalance(const std::string& publicKey, uint64_t balance);
 
-    // gauti balansa
-    uint64_t getBalance(const std::string& publicKey) const;
+    // gauti balansa 
+    uint64_t getBalance(const std::string& publicKey) const noexcept;
 
     // patikrinti ar transakcija galima pritaikyti
     bool canApply(const Transaction& tx) const;

@@ -3,30 +3,41 @@
 #include <chrono>
 #include <string>
 
+// RAII Timer klasė: automatinis laiko matavimas
 class Timer {
 public:
-    Timer() { reset(); }
+    Timer() noexcept { reset(); }
+    
+    // isjungia kopijavima (timer yra unique per scope)
+    Timer(const Timer&) = delete;
+    Timer& operator=(const Timer&) = delete;
+    
+    // move 
+    Timer(Timer&&) noexcept = default;
+    Timer& operator=(Timer&&) noexcept = default;
+    
+    ~Timer() = default;
 
-    void reset() {
+    void reset() noexcept {
         start = std::chrono::high_resolution_clock::now();
     }
 
-    //milisek
-    double elapsed_ms() const {
+    // milisekundes
+    double elapsed_ms() const noexcept {
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> diff = end - start;
         return diff.count();
     }
 
-    //sekundės
-    double elapsed() const {
+    // sekundes
+    double elapsed() const noexcept {
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> diff = end - start;
         return diff.count();
     }
 
-    //mikrosek
-    double elapsed_us() const {
+    // mikrosekundes
+    double elapsed_us() const noexcept {
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::micro> diff = end - start;
         return diff.count();

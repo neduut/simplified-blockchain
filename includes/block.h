@@ -6,36 +6,44 @@
 
 class Block {
 public:
+    // konstruktoriai (explicit jei vienas parametras po default)
     Block(int index, const std::string& data, const std::string& previousHash);
     
     // konstruktorius su transakcijomis
     Block(int index, const std::vector<Transaction>& transactions, 
           const std::string& previousHash, int difficulty = 3);
 
+    // Rule of Five: default, nes naudoju tik STL konteinerius (automatinis RAII)
+    Block(const Block&) = default;
+    Block& operator=(const Block&) = default;
+    Block(Block&&) noexcept = default;
+    Block& operator=(Block&&) noexcept = default;
+    ~Block() = default;
+
     std::string toString() const;
     void printBlock() const;
 
-    // getteriai
-    int getIndex() const { return index_; }
-    std::time_t getTimestamp() const { return timestamp_; }
-    const std::string& getData() const { return data_; }
-    const std::string& getPreviousHash() const { return previousHash_; }
-    const std::string& getHash() const { return hash_; }
-    unsigned long long getNonce() const { return nonce_; }
-    int getVersion() const { return version_; }
-    int getDifficulty() const { return difficulty_; }
-    const std::string& getTxRoot() const { return txRoot_; }
-    const std::vector<Transaction>& getTransactions() const { return transactions_; }
+    // getteriai 
+    int getIndex() const noexcept { return index_; }
+    std::time_t getTimestamp() const noexcept { return timestamp_; }
+    const std::string& getData() const noexcept { return data_; }
+    const std::string& getPreviousHash() const noexcept { return previousHash_; }
+    const std::string& getHash() const noexcept { return hash_; }
+    unsigned long long getNonce() const noexcept { return nonce_; }
+    int getVersion() const noexcept { return version_; }
+    int getDifficulty() const noexcept { return difficulty_; }
+    const std::string& getTxRoot() const noexcept { return txRoot_; }
+    const std::vector<Transaction>& getTransactions() const noexcept { return transactions_; }
 
     // setteriai
     void setNonce(unsigned long long nonce) { nonce_ = nonce; }
     void setHash(const std::string& hash) { hash_ = hash; }
     void setTxRoot(const std::string& txRoot) { txRoot_ = txRoot; }
 
-    // v0.2: diagnostika/validacija
-    // Perskaičiuoja Merkle Root iš dabartinių transakcijų ID
+    // patikrinimas
+    // perskaičiuoja Merkle Root is dabartiniu transakciju id
     std::string recomputeTxRoot() const;
-    // Patikrina, ar saugomas txRoot_ sutampa su perskaičiuotu
+    // patikrina ar saugomas txRoot_ sutampa su perskaiciuotu
     bool verifyTxRoot() const;
 
 private:

@@ -14,11 +14,18 @@ public:
     
     User(const std::string& name, const std::string& publicKey, uint64_t balance = 0)
         : name_(name), publicKey_(publicKey), balance_(balance) {}
+    
+    // Rule of Five: default 
+    User(const User&) = default;
+    User& operator=(const User&) = default;
+    User(User&&) noexcept = default;
+    User& operator=(User&&) noexcept = default;
+    ~User() = default;
 
-    // getters
-    std::string getName() const { return name_; }
-    std::string getPublicKey() const { return publicKey_; }
-    uint64_t getBalance() const { return balance_; }
+    // getters 
+    const std::string& getName() const noexcept { return name_; }
+    const std::string& getPublicKey() const noexcept { return publicKey_; }
+    uint64_t getBalance() const noexcept { return balance_; }
 
     // setters
     void setName(const std::string& name) { name_ = name; }
