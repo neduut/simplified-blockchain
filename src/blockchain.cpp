@@ -60,7 +60,7 @@ void Blockchain::mineBlock(Block& block) {
     }
 }
 
-// v0.2: kasimas su laiko limitu
+// kasimas su laiko limitu
 bool Blockchain::mineBlockWithTimeLimit(Block& block, double timeLimitSec, unsigned long long& finalNonce) {
     std::string target(difficulty_, '0');
     std::string hash;
@@ -76,14 +76,14 @@ bool Blockchain::mineBlockWithTimeLimit(Block& block, double timeLimitSec, unsig
         if (hash.substr(0, difficulty_) == target) {
             block.setHash(hash);
             finalNonce = nonce;
-            return true; // Success!
+            return true; // success
         }
         
         nonce++;
     }
     
     finalNonce = nonce;
-    return false; // Time limit exceeded
+    return false; // time limit exceeded
 }
 
 // kasimas su laiko IR/ARBA bandymu limitu
@@ -254,7 +254,7 @@ bool Blockchain::formBlockFromPool(TxPool& pool, Ledger& ledger, size_t nTx) {
     return true;
 }
 
-// v0.2: Decentralizuotas kasimas su kandidatiniais blokais
+// decentralizuotas kasimas su kandidatiniais blokais
 bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx, 
                                      int numCandidates, double timeLimitSec,
                                      unsigned long long attemptsLimit) {
@@ -288,17 +288,17 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
             std::cout << "Attempts limit: " << currentAttemptsLimit << "\n\n";
         }
         
-        // Sukuriame kandidatinius blokus
+        // sukuria kandidatinius blokus
         std::vector<Block> candidates;
         std::vector<std::vector<Transaction>> candidateTxSets;
         std::vector<std::vector<std::string>> candidateRemoveIds;
         
         for (int i = 0; i < numCandidates; ++i) {
-            // Pasiimam atsitiktines transakcijas
+            // pasiima atsitiktines transakcijas
             std::vector<Transaction> selectedTx = pool.takeRandom(nTx);
             if (selectedTx.empty()) break;
             
-            // Verifikacija
+            //verifikacija
             std::vector<Transaction> validTx;
             std::vector<std::string> toRemoveIds;
             
@@ -315,7 +315,7 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
             
             if (validTx.empty()) continue;
             
-            // Sukuriame kandidatinį bloką
+            // sukuria kandidatini bloka
             int newIndex = static_cast<int>(chain_.size());
             std::string prevHash = getLastBlockHash();
             Block candidate(newIndex, validTx, prevHash, difficulty_);
@@ -335,7 +335,7 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
         
         std::cout << "\nMining " << candidates.size() << " candidates competitively...\n";
         
-        // Kasame konkuruojančius blokus (sekvenciškai, kaip užduotyje)
+        // kasa konkuruojancius blokus 
         Timer roundTimer;
         int winner = -1;
         unsigned long long bestNonce = 0;
@@ -352,11 +352,11 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
                 winner = static_cast<int>(i);
                 bestNonce = nonce;
                 bestTime = elapsed;
-                break; // Pirmas laimėtojas, daugiau neieškome
+                break; // kai pirmas iskasa nutraukia cikla
             }
         }
         
-        // Rezultatai
+        // rezultatai
         if (winner >= 0) {
             std::cout << "\n*** Candidate #" << (winner + 1) << " WON! ***\n";
             std::cout << "   Nonce: " << bestNonce 
@@ -364,7 +364,7 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
                      << " | Time: " << std::fixed << std::setprecision(3) 
                      << bestTime << " s\n";
             
-            // Pritaikom laimėtoją
+            // laimetojas
             for (const auto& tx : candidateTxSets[winner]) {
                 ledger.apply(tx);
             }
@@ -379,7 +379,7 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
             
             return true;
         } else {
-            // Nei vienas neiškastu - didinamas laikas/bandymai
+            // jei nei viens naiskastu - didinamas laikas/bandymai
             std::cout << "\nNo block mined with current limits. ";
             if (currentTimeLimit > 0.0) {
                 currentTimeLimit *= 1.5;
@@ -394,7 +394,7 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
             std::cout << "...\n\n";
             round++;
             
-            // Saugiklis nuo begalinio ciklo
+            // saugiklis nuo begalinio ciklo
             if (round > 10) {
                 std::cout << "Too many rounds - aborting.\n";
                 return false;
@@ -403,7 +403,7 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
     }
 }
 
-// Papildomas: paralelinis kandidatų kasimas (su threads, kaip papildymas)
+// paralelinis kandidatų kasimas 
 bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_t nTx, 
                                               int numCandidates, double timeLimitSec,
                                               unsigned long long attemptsLimit) {
@@ -423,7 +423,7 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
         std::cout << "Time limit: " << std::fixed << std::setprecision(1) 
                   << currentTimeLimit << "s\n\n";
         
-        // Sukuriame kandidatinius blokus
+        // sukuria kandidatinius blokus
         std::vector<Block> candidates;
         std::vector<std::vector<Transaction>> candidateTxSets;
         std::vector<std::vector<std::string>> candidateRemoveIds;
@@ -467,7 +467,7 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
         
         std::cout << "\nMining " << candidates.size() << " candidates in parallel...\n";
         
-        // Paralelinis kasimas su threads
+        // paralelinis kasimas su threads
         Timer roundTimer;
         std::atomic<bool> stopFlag{false};
         std::atomic<int> winner{-1};
@@ -563,7 +563,7 @@ bool Blockchain::isChainValid() const {
             return false;
         }
 
-        // v0.2: papildoma validacija — patikriname Merkle Root atitikimą
+        // papildoma validacija — patikriname Merkle Root atitikima
         if (curr.getVersion() == 2 && !curr.verifyTxRoot()) {
             std::cout << "Invalid chain: txRoot mismatch at block " << i << "\n";
             return false;
@@ -622,4 +622,59 @@ void Blockchain::saveToFile(const Block& block) const {
     file << "Hash      : " << block.getHash() << "\n";
     file << std::string(40, '-') << "\n";
     file.close();
+}
+
+// JSON eksportas
+void Blockchain::exportToJson(const std::string& filename) const {
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file: " << filename << "\n";
+        return;
+    }
+    
+    file << "{\n";
+    file << "  \"difficulty\": " << difficulty_ << ",\n";
+    file << "  \"chainLength\": " << chain_.size() << ",\n";
+    file << "  \"chain\": [\n";
+    
+    for (size_t i = 0; i < chain_.size(); ++i) {
+        const auto& block = chain_[i];
+        file << "    {\n";
+        file << "      \"index\": " << block.getIndex() << ",\n";
+        file << "      \"timestamp\": " << block.getTimestamp() << ",\n";
+        file << "      \"version\": " << block.getVersion() << ",\n";
+        file << "      \"hash\": \"" << block.getHash() << "\",\n";
+        file << "      \"previousHash\": \"" << block.getPreviousHash() << "\",\n";
+        file << "      \"nonce\": " << block.getNonce() << ",\n";
+        file << "      \"difficulty\": " << block.getDifficulty() << ",\n";
+        
+        if (block.getVersion() == 1) {
+            file << "      \"data\": \"" << block.getData() << "\",\n";
+        } else {
+            file << "      \"txRoot\": \"" << block.getTxRoot() << "\",\n";
+            file << "      \"transactionCount\": " << block.getTransactions().size() << ",\n";
+            
+            // Transactions array
+            file << "      \"transactions\": [\n";
+            const auto& txs = block.getTransactions();
+            for (size_t j = 0; j < txs.size(); ++j) {
+                file << "        {\n";
+                file << "          \"id\": \"" << txs[j].getId() << "\",\n";
+                file << "          \"from\": \"" << txs[j].getFrom() << "\",\n";
+                file << "          \"to\": \"" << txs[j].getTo() << "\",\n";
+                file << "          \"amount\": " << txs[j].getAmount() << ",\n";
+                file << "          \"timestamp\": " << txs[j].getTimestamp() << "\n";
+                file << "        }" << (j < txs.size() - 1 ? "," : "") << "\n";
+            }
+            file << "      ]\n";
+        }
+        
+        file << "    }" << (i < chain_.size() - 1 ? "," : "") << "\n";
+    }
+    
+    file << "  ]\n";
+    file << "}\n";
+    file.close();
+    
+    std::cout << "Blockchain exported to " << filename << "\n";
 }

@@ -274,17 +274,20 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
 
 int main() {
     try {
-        // ensure logs folder, then pazymim sesijos pradzia log faile
+        // ensure logs folder, then pazymi sesijos pradzia log faile
         ensure_logs_dir();
         log_session_start();
         
-        // inicializuojam blockchain, pool ir users
+        // inicializuoja blockchain, pool ir users
         Blockchain blockchain(3);
         TxPool pool;
         vector<User> users;
         
         // test 1: transaction system
         testTransactionBlocks(blockchain, pool, users);
+        
+        // JSON eksportas i logs kataloga
+        blockchain.exportToJson("logs/blockchain_export.json");
         
         // interaktyvus query meniu
         printHeader("Query System");

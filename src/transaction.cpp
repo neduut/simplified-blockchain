@@ -7,7 +7,7 @@
 
 Transaction::Transaction(const std::string& from, const std::string& to, uint64_t amount)
     : from_(from), to_(to), amount_(amount), timestamp_(std::time(nullptr)) {
-    // automatiskai generuojam ID
+    // automatiskai generuoja id
     id_ = computeId(*this);
 }
 
@@ -17,7 +17,7 @@ std::string Transaction::computeId(const Transaction& t, const std::string& salt
     return generate_hash(oss.str());
 }
 
-// v0.2: verifikacija - perskaičiuoja ID ir lygina su saugomu
+// verifikacija - perskaiciuoja id ir lygina su saugomu
 bool Transaction::verifyId() const {
     std::string recomputed = computeId(*this);
     return (id_ == recomputed);

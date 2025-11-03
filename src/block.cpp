@@ -29,7 +29,7 @@ Block::Block(int index, const std::vector<Transaction>& transactions,
     , difficulty_(difficulty)
     , transactions_(transactions) {
     
-    // v0.2: generuoja tikra Merkle Root is transakciju ID
+    // v0.2 generuoja tikra Merkle Root is transakciju id
     std::vector<std::string> leaves;
     leaves.reserve(transactions_.size());
     for (const auto& tx : transactions_) {
@@ -38,7 +38,7 @@ Block::Block(int index, const std::vector<Transaction>& transactions,
     txRoot_ = MerkleTree::from_leaves(leaves).root();
 }
 
-// v0.2: tikrinimas
+// v0.2 tikrinimas
 std::string Block::recomputeTxRoot() const {
     if (version_ != 2) return std::string();
     std::vector<std::string> leaves;

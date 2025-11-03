@@ -27,25 +27,25 @@ bool Ledger::apply(const Transaction& tx) {
         return false;
     }
 
-    // nustatom nauja siuntejo balansa be kurimo pagal nutylejima
+    // nustato nauja siuntejo balansa be kurimo pagal nutylejima
     balances_[tx.getFrom()] = senderBalance - tx.getAmount();
     
-    // didinam gavejo balansa (jei nera, sukurs su 0)
+    // didina gavejo balansa (jei nera, sukurs su 0)
     balances_[tx.getTo()] += tx.getAmount();
     return true;
 }
 
 bool Ledger::applyMultiple(const std::vector<Transaction>& transactions) {
-    // patikrinam ar visos transakcijos validzios
+    // patikrina ar visos transakcijos validzios
     for (const auto& tx : transactions) {
         if (!canApply(tx)) {
             return false;
         }
     }
     
-    // jei visos validzios, pritaikom
+    // jei visos validzios, pritaiko
     for (const auto& tx : transactions) {
-        // kadangi jau patikrinom, turetu visada buti true
+        // kadangi jau patikrino, turetu visada buti true
         (void)apply(tx);
     }
     

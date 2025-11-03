@@ -40,6 +40,9 @@ public:
     void printChain() const;
     void printStatistics() const;
     
+    // JSON eksportas
+    void exportToJson(const std::string& filename) const;
+    
     // getters 
     size_t getChainSize() const noexcept { return chain_.size(); }
     const Block& getBlock(size_t index) const { return chain_.at(index); }

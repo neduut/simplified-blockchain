@@ -15,22 +15,22 @@ std::vector<Transaction> TxPool::takeRandom(size_t n) {
         return result;
     }
     
-    // neimam daugiau nei yra
+    // neima daugiau nei yra
     size_t count = std::min(n, pool_.size());
     
-    // sukuriam indeksu masyva
+    // sukuria indeksu masyva
     std::vector<size_t> indices(pool_.size());
     for (size_t i = 0; i < pool_.size(); ++i) {
         indices[i] = i;
     }
     
-    // maisom indeksus
+    // maiso indeksus
     unsigned seed = static_cast<unsigned>(
         std::chrono::high_resolution_clock::now().time_since_epoch().count()
     );
     std::shuffle(indices.begin(), indices.end(), std::default_random_engine(seed));
     
-    // imam pirmus count indeksu
+    // ima pirmus count indeksu
     result.reserve(count);
     for (size_t i = 0; i < count; ++i) {
         result.push_back(pool_[indices[i]]);
@@ -40,7 +40,7 @@ std::vector<Transaction> TxPool::takeRandom(size_t n) {
 }
 
 void TxPool::eraseByIds(const std::vector<std::string>& ids) {
-    // istrinam transakcijas kuriu ID yra sarase
+    // istrina transakcijas kuriu id yra sarase
     pool_.erase(
         std::remove_if(pool_.begin(), pool_.end(),
             [&ids](const Transaction& tx) {
