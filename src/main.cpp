@@ -61,7 +61,7 @@ static void ensure_logs_dir() {
 
 // paprasti blokai su data
 void testSimpleBlocks(int difficulty, int numBlocks) {
-    printHeader("TEST v0.1: Simple Blocks (difficulty = " + to_string(difficulty) + ")");
+    printHeader("Simple Blocks Test (difficulty = " + to_string(difficulty) + ")");
     
     Timer totalTimer;
     Blockchain blockchain(difficulty);
@@ -131,9 +131,9 @@ void queryTransaction(const TxPool& pool) {
     }
 }
 
-// v0.1 Test: Blokai su transakcijomis
+// Test: Blokai su transakcijomis
 void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& users) {
-    printHeader("TEST v0.1: Transaction System");
+    printHeader("Transaction System");
     
     Ledger ledger;
     
@@ -221,17 +221,18 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
     }
     cout << "  (See logs/merkle_log.txt for all transactions)\n\n";
     
-    // kasa blokus
-    printHeader("Mining Blocks with Transactions");
+    // kasa blokus su kandidatais (v0.2: decentralizuotas kasimas)
+    printHeader("Mining Blocks with Decentralized Process");
     
     Timer totalTimer;
     int blocksToMine = 3;
     int successfulBlocks = 0;
     
     for (int i = 0; i < blocksToMine; ++i) {
-        cout << "\n--- Mining Block #" << i + 1 << " ---\n";
+        cout << "\n========== Mining Block #" << i + 1 << " ==========\n";
         
-        if (blockchain.formBlockFromPool(pool, ledger, 100)) {
+        // Naudojame kandidatinį kasimą: 5 kandidatai, 5s limitas
+        if (blockchain.mineCandidateBlocks(pool, ledger, 100, 5, 5.0)) {
             successfulBlocks++;
         } else {
             cout << "Failed to mine block\n";

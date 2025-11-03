@@ -1,10 +1,10 @@
-# Simplified Blockchain v0.2
+# Simplified Blockchain
 
 Paprastas blockchain projektas su Proof-of-Work algoritmu, transakcijomis ir balansų sistema.
 
 ## Apie projektą
 
-v0.1 versija realizuoja centralizuotą blokų grandinę su:
+Projektas realizuoja blokų grandinę su:
 - 1000 vartotojų su atsitiktiniais pradiniais balansais (nuo 100 iki 1 000 000 monetų)
 - Proof-of-Work kasimo procesu (difficulty = 3, hash turi prasidėti "000...")
 - Account model balansų skaičiavimu ir patikrinimu
@@ -53,10 +53,10 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 - Paprastas duomenų konteineris su getteriais
 
 **MerkleTree** (`merkle.h/cpp`)
-- Merkle medžio struktūra (paruošta v0.2)
+- Merkle medžio struktūra
 - `from_leaves()` - kuria medį iš lapų (tx id)
 - `root()` - grąžina šaknį
-- v0.1 dar nenaudojamas Block txRoot skaičiavime
+- Naudojama Block `txRoot` skaičiavimui
 
 **Timer** (`timer.h/cpp`)
 - Paprastas chrono wrapper laiko matavimui
@@ -70,7 +70,7 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 - **Single Responsibility**: kiekviena klasė atsakinga už vieną dalyką
 
 ## Proof-of-Work (PoW)
-- tikslas: rasti nonce taip, kad bloko hash prasidėtų su N nulių. v0.1 difficulty=3, taigi tikslas yra "000...".
+- tikslas: rasti nonce taip, kad bloko hash prasidėtų su N nulių. Naudojama difficulty=3, taigi tikslas yra "000...".
 - hash funkcija: custom `generate_hash()` (256-bit HEX). išvedime rodau pilnus hash'us.
 - hash'inami laukai:
 	- v1 blokas: index, timestamp, data, prevHash, nonce
@@ -79,7 +79,19 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 - progresas: kas 100000 bandymų išvedamas bandymų skaičius; po kasimo parodytas Nonce + Hash + Time + Attempts.
 - patikrinimas: `isChainValid()` tikrina prev hashus, ir patikrina, kad hash atitiktų difficulty ("000...").
 - difficulty: nustatomas paleidžiant `Blockchain(3)`. galima lengvai keisti.
-- v0.2: `txRoot` yra tikras Merkle Root (v0.1 buvo paprastas visų Tx ID sujungimo hash).
+- `txRoot` yra tikras Merkle Root.
+
+### Decentralizuotas kasimas
+- Tikslas: imituoti kelių kalnakasių konkurenciją su laiko apribojimu.
+- Procesas:
+  1) Iš `TxPool` suformuojami 5 kandidatiniai blokai (po ~100 patikrintų transakcijų kiekviename).
+  2) Visi kandidatai „kasami“ konkurencingai, bet tik ribotą laiką (pvz., 5 s per raundą).
+  3) Jei per raundą nei vienas neiškasa (neatrenka hash su pakankamu nulių skaičiumi) – laiko limitas padidinamas 1.5× ir kartojama (iki 10 raundų, kad nebūtų begalinio ciklo).
+  4) Pirmasis sėkmingai iškastas kandidatas laimi: jo transakcijos pritaikomos `Ledger`, jos pašalinamos iš `TxPool`, o blokas prijungiamas prie grandinės.
+
+- API:
+  - `Blockchain::mineCandidateBlocks(TxPool&, Ledger&, size_t nTx=100, int numCandidates=5, double timeLimitSec=5.0)` – paleidžia vieną decentralizuoto kasimo etapą.
+  - `Blockchain::mineBlockWithTimeLimit(Block&, double timeLimitSec, unsigned long long& outNonce)` – kasa konkretų bloką, neviršydamas laiko limito; grąžina `true/false`.
 
 ## Blokų ir transakcijų kūrimas, kasimas, patikrinimas
 
@@ -90,7 +102,7 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 4. Sugeneruojamos 10000 transakcijų: `Transaction(from, to, amount)`
 5. Transaction ID automatiškai: `id = hash(from + to + amount + timestamp)`
 
-### Bloko formavimas (v0.2)
+### Bloko formavimas
 1. Iš TxPool pasirenkamos ~100 atsitiktinių transakcijų
 2. **Dviejų žingsnių verifikacija**:
    - **Transakcijos ID tikrinimas**: Perskaičiuoja hash iš laukų (from, to, amount, timestamp) per `tx.verifyId()` ir lygina su saugomu `id`. Jei nesutampa — transakcija atmesta (galimai sugadinta arba suklastota).
@@ -123,7 +135,7 @@ while (true) {
 - Ar dabartinis blokas `prevHash == previous.hash`
 - Ar blokas perhashintas teisingai: `hash(block.toString()) == block.hash`
 - Ar hash atitinka difficulty: `hash.substr(0, difficulty) == "000"`
-- **v0.2**: Jei blokas v2, perskaičiuoja Merkle Root iš transakcijų ID ir patikrina, kad jis sutaptų su saugomu `txRoot` (nesutapus – grandinė laikoma negaliojančia)
+- Jei blokas v2, perskaičiuoja Merkle Root iš transakcijų ID ir patikrina, kad jis sutaptų su saugomu `txRoot` (nesutapus – grandinė laikoma negaliojančia)
 
 ## Mano sprendimai (papildomi patobulinimai)
 
@@ -163,11 +175,11 @@ Options:
 
 ## Projekto veikimo demonstracija
 
-### Konsolės išvestis (pavyzdys)
+### Konsolės išvestis 
 
 ```
 ==============================================
-Simplified Blockchain v0.1
+Simplified Blockchain
 Difficulty: 3
 ==============================================
 
@@ -264,6 +276,58 @@ Hash      : 0005e69648968f559092e6d11ca9d61e5f4b3a2c1d0e9f8a7b6c5d4e3f2a1b0c
 ----------------------------------------
 ```
 
+### Konsolės išvestis (decentralizuotas kasimas)
+
+```
+============================================================
+Mining Blocks with Decentralized Process
+============================================================
+
+
+========== Mining Block #1 ==========
+
+=== Decentralized Mining: 5 candidates ===
+Time limit per round: 5.000 seconds
+
+--- Mining Round #1 ---
+Time limit: 5.0s
+
+Candidate #1: 100 transactions
+Candidate #2: 100 transactions
+Candidate #3: 100 transactions
+Candidate #4: 100 transactions
+Candidate #5: 100 transactions
+
+Mining 5 candidates competitively...
+
+*** Candidate #1 WON! ***
+  Nonce: 7083 | Hash: 000330f51b6071d6... | Time: 0.318 s
+Block #1 added to chain with 100 transactions
+
+... [toliau 2 blokai iškasami panašiai] ...
+
+============================================================
+Results
+============================================================
+
+Total mining time: 4.95 seconds
+Blocks mined: 3
+Transactions remaining in pool: 9700
+
+============================================================
+Blockchain Validation
+============================================================
+
+==================================================
+BLOCKCHAIN STATISTICS
+==================================================
+Total blocks  : 4
+Difficulty    : 3 (hash starts with 000)
+Chain valid   : YES
+Average nonce : 6578.00
+==================================================
+```
+
 ### Transakcijos pavyzdys
 
 ```
@@ -275,21 +339,12 @@ Transaction
   Time: 1761501491
 ```
 
-## TO DO (v0.2)
+## AI pagalba
 
-1. **Tikras Merkle Tree ir Merkle Root Hash**
-2. **Transakcijų verifikacija**
-3. **Decentralizuotas kasimo procesas**
-4. **Papildomas patikrinimas?**
+1. `README.md` generavimas
+2. Blockchain veikimo principo supratimas
+
 
 ---
 
-# Programos versijos
-
-Kiekviena versija išsamiai aprašyta jos `README.md` faile.
-
-## v0.1
-lalala
-
-## v0.2
-lalala
+ 

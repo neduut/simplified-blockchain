@@ -15,6 +15,10 @@ public:
     // block su transakcijom is pool
     bool formBlockFromPool(TxPool& pool, Ledger& ledger, size_t nTx = 100);
     
+    // v0.2: decentralizuotas kasimas su kandidatiniais blokais
+    bool mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx = 100, 
+                             int numCandidates = 5, double timeLimitSec = 5.0);
+    
     bool isChainValid() const;
     void printChain() const;
     void printStatistics() const;
@@ -27,6 +31,10 @@ public:
 
 private:
     void mineBlock(Block& block);
+    
+    // v0.2: kasimas su laiko limitu (grąžina true jei iškastu, false jei per lėtas)
+    bool mineBlockWithTimeLimit(Block& block, double timeLimitSec, unsigned long long& finalNonce);
+    
     std::string getLastBlockHash() const;
     void saveToFile(const Block& block) const;
 
