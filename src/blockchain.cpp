@@ -84,11 +84,23 @@ bool Blockchain::formBlockFromPool(TxPool& pool, Ledger& ledger, size_t nTx) {
     
     std::cout << "\nForming block from " << selectedTx.size() << " transactions...\n";
     
-    // filtruojam tik valid
+    // v0.2: dviejų žingsnių verifikacija - ID hash + balansas
     std::vector<Transaction> validTx;
     std::vector<std::string> toRemoveIds;
+    int invalidId = 0;
+    int insufficientBalance = 0;
     
     for (const auto& tx : selectedTx) {
+        // 1. Patikrinam transakcijos ID teisingumą
+        if (!tx.verifyId()) {
+            std::cout << "   Invalid TX " << tx.getId().substr(0, 8) 
+                     << "... (ID hash mismatch)\n";
+            toRemoveIds.push_back(tx.getId());
+            invalidId++;
+            continue;
+        }
+        
+        // 2. Patikrinam balansą
         if (ledger.canApply(tx)) {
             validTx.push_back(tx);
             toRemoveIds.push_back(tx.getId());
@@ -96,7 +108,13 @@ bool Blockchain::formBlockFromPool(TxPool& pool, Ledger& ledger, size_t nTx) {
             std::cout << "   Invalid TX " << tx.getId().substr(0, 8) 
                      << "... (insufficient balance)\n";
             toRemoveIds.push_back(tx.getId());
+            insufficientBalance++;
         }
+    }
+    
+    if (invalidId > 0 || insufficientBalance > 0) {
+        std::cout << "   Rejected: " << invalidId << " invalid ID(s), " 
+                 << insufficientBalance << " insufficient balance(s)\n";
     }
     
     if (validTx.empty()) {

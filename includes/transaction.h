@@ -30,6 +30,10 @@ public:
     // static metodas - apskaiciuoja transaction id naudojant ownhash
     static std::string computeId(const Transaction& t, const std::string& salt = "");
 
+    // v0.2: verifikacija
+    // Perskaičiuoja ID iš laukų ir patikrina, ar sutampa su saugomu id_
+    bool verifyId() const;
+
     // serializacija i string (hash generavimui)
     std::string toString() const;
 

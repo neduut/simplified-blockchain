@@ -17,6 +17,12 @@ std::string Transaction::computeId(const Transaction& t, const std::string& salt
     return generate_hash(oss.str());
 }
 
+// v0.2: verifikacija - perskaičiuoja ID ir lygina su saugomu
+bool Transaction::verifyId() const {
+    std::string recomputed = computeId(*this);
+    return (id_ == recomputed);
+}
+
 std::string Transaction::toString() const {
     std::ostringstream oss;
     oss << from_ << to_ << amount_ << timestamp_;

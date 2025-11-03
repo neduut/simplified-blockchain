@@ -90,11 +90,14 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 4. Sugeneruojamos 10000 transakcijų: `Transaction(from, to, amount)`
 5. Transaction ID automatiškai: `id = hash(from + to + amount + timestamp)`
 
-### Bloko formavimas
+### Bloko formavimas (v0.2)
 1. Iš TxPool pasirenkamos ~100 atsitiktinių transakcijų
-2. Kiekviena validuojama per `Ledger::canApply()` (ar sender turi pakankamai)
-3. Valid transakcijos įdedamos į naują `Block(index, validTx, prevHash, difficulty)`
-4. Block konstruktorius automatiškai skaičiuoja `txRoot = MerkleRoot(tx.id)` (jei lygis nelyginis — dubliuojamas paskutinis lapas)
+2. **Dviejų žingsnių verifikacija**:
+   - **Transakcijos ID tikrinimas**: Perskaičiuoja hash iš laukų (from, to, amount, timestamp) per `tx.verifyId()` ir lygina su saugomu `id`. Jei nesutampa — transakcija atmesta (galimai sugadinta arba suklastota).
+   - **Balanso tikrinimas**: Tikrina per `ledger.canApply(tx)`, ar siuntėjas turi pakankamai lėšų. Jei balansas nepakankamas — transakcija atmesta.
+   - Atmestos transakcijos registruojamos konsolėje su priežastimi (invalid ID / insufficient balance) ir statistika.
+3. Tik abiejų patikrų praėjusios transakcijos įdedamos į naują `Block(index, validTx, prevHash, difficulty)`
+4. Block konstruktorius automatiškai skaičiuoja `txRoot = MerkleRoot(tx.id)` naudojant tikrą Merkle Tree (jei lygis nelyginis — paskutinis lapas dubliuojamas)
 
 ### Kasimas (PoW)
 ```cpp
@@ -115,30 +118,33 @@ while (true) {
 3. Blokas pridedamas į grandinę: `chain_.push_back(block)`
 4. Blokas išsaugomas į `logs/blockchain_log.txt`
 
-### Patikrinimas
+### Patikrinimas (grandinės validacija)
 `isChainValid()` tikrina:
 - Ar dabartinis blokas `prevHash == previous.hash`
 - Ar blokas perhashintas teisingai: `hash(block.toString()) == block.hash`
 - Ar hash atitinka difficulty: `hash.substr(0, difficulty) == "000"`
-- Jei blokas v2: perskaičiuoja Merkle Root iš Tx ID ir patikrina, kad jis sutaptų su saugomu `txRoot` (nesutapus – grandinė laikoma negaliojančia)
+- **v0.2**: Jei blokas v2, perskaičiuoja Merkle Root iš transakcijų ID ir patikrina, kad jis sutaptų su saugomu `txRoot` (nesutapus – grandinė laikoma negaliojančia)
 
-## Mano sprendimai
+## Mano sprendimai (papildomi patobulinimai)
 
 ### Custom hash funkcija
 - Pradžioje naudojau Base62, bet su difficulty=2 per 41M+ nonces nerado "00" pradžios, todėl pakeičiau į HEX 
 
 ### Account model
 - Vietoje UTXO naudoju Account model (Ledger su balansais)
-- Paprastesnis implementuoti v0.1
+- Paprastesnis implementuoti
 - `canApply()` pre-check + `apply()` su underflow apsauga
 
-### Logging
+### Logging į atskirą logs/ aplanką
 - Kiekvienas blokas išsaugomas į `logs/blockchain_log.txt` su pilnais headeriais
+- Visos transakcijos išsaugomos į `logs/merkle_log.txt`
 - Sesijos pradžioje: `date_utc` žymė
 - Bloko info: Version, Tx Root, Difficulty, Nonce, Prev Hash, Hash
 
-### MerkleTree (v0.2)
- - Patikrinimas: `Block::recomputeTxRoot()` ir `Block::verifyTxRoot()` leidžia perskaičiuoti ir sulyginti Merkle Root su išsaugotu `txRoot`. Tai padeda aptikti neatitikimus ir gerina validaciją.
+### Merkle Root diagnostika (papildoma validacija)
+- `Block::recomputeTxRoot()` ir `Block::verifyTxRoot()` metodai leidžia perskaičiuoti ir sulyginti Merkle Root su išsaugotu `txRoot`
+- Naudojama grandinės validacijoje `isChainValid()` — papildoma apsauga nuo duomenų sugadinimo
+- Tai nėra griežtas užduoties reikalavimas, bet stiprina vientisumo tikrinimą
 
 ## Interaktyvus užklausų menu
 
