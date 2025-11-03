@@ -8,6 +8,10 @@
 #include <thread>
 #include <atomic>
 
+// Transaction fee settings
+static constexpr uint64_t TX_FEE = 1; // flat fee per transaction
+static const std::string FEE_COLLECTOR = "MINER_FEE"; // miner account key
+
 Blockchain::Blockchain(int difficulty)
     : difficulty_(difficulty) 
 {
@@ -89,43 +93,35 @@ bool Blockchain::mineBlockWithTimeLimit(Block& block, double timeLimitSec, unsig
     return false; // time limit exceeded
 }
 
-// kasimas su laiko IR/ARBA bandymu limitu
+// kasimas su bandymu limitu (arba laiko, jei timeLimitSec > 0)
 bool Blockchain::mineBlockWithLimits(Block& block, double timeLimitSec, unsigned long long attemptsLimit, unsigned long long& finalNonce) {
     std::string target(difficulty_, '0');
     std::string hash;
     unsigned long long nonce = 0;
-    
+
     Timer timer;
-    
-    // jei abu limitai 0 – error
-    if (timeLimitSec <= 0.0 && attemptsLimit == 0) {
-        finalNonce = 0;
-        return false;
-    }
-    
+
     while (true) {
         // tikrina laiko limita (jei nustatytas)
         if (timeLimitSec > 0.0 && timer.elapsed() >= timeLimitSec) {
             finalNonce = nonce;
             return false; // Time limit exceeded
         }
-        
         // tikrinam bandymu limita (jei nustatytas)
         if (attemptsLimit > 0 && nonce >= attemptsLimit) {
             finalNonce = nonce;
             return false; // attempts limit exceeded
         }
-        
+
         block.setNonce(nonce);
         std::string blockData = block.toString();
         hash = generate_hash(blockData);
-        
+
         if (hash.substr(0, difficulty_) == target) {
             block.setHash(hash);
             finalNonce = nonce;
             return true; // success
         }
-        
         nonce++;
     }
 }
@@ -204,12 +200,12 @@ bool Blockchain::formBlockFromPool(TxPool& pool, Ledger& ledger, size_t nTx) {
         }
         
         // tikrina balansa
-        if (ledger.canApply(tx)) {
+        if (ledger.canApplyWithFee(tx, TX_FEE)) {
             validTx.push_back(tx);
             toRemoveIds.push_back(tx.getId());
         } else {
             std::cout << "   Invalid TX " << tx.getId().substr(0, 8) 
-                     << "... (insufficient balance)\n";
+                     << "... (insufficient balance incl. fee)\n";
             toRemoveIds.push_back(tx.getId());
             insufficientBalance++;
         }
@@ -239,7 +235,7 @@ bool Blockchain::formBlockFromPool(TxPool& pool, Ledger& ledger, size_t nTx) {
     
     // pritaikom ledger
     for (const auto& tx : validTx) {
-        ledger.apply(tx);
+        ledger.applyWithFee(tx, FEE_COLLECTOR, TX_FEE);
     }
     
     // istrinam is pool
@@ -310,7 +306,7 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
                     toRemoveIds.push_back(tx.getId());
                     continue;
                 }
-                if (ledger.canApply(tx)) {
+                if (ledger.canApplyWithFee(tx, TX_FEE)) {
                     validTx.push_back(tx);
                     toRemoveIds.push_back(tx.getId());
                 }
@@ -369,7 +365,7 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
             
             // laimetojas
             for (const auto& tx : candidateTxSets[winner]) {
-                ledger.apply(tx);
+                ledger.applyWithFee(tx, FEE_COLLECTOR, TX_FEE);
             }
             
             pool.eraseByIds(candidateRemoveIds[winner]);
@@ -512,7 +508,7 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
                      << bestTime << " s\n";
             
             for (const auto& tx : candidateTxSets[winIdx]) {
-                ledger.apply(tx);
+                ledger.applyWithFee(tx, FEE_COLLECTOR, TX_FEE);
             }
             
             pool.eraseByIds(candidateRemoveIds[winIdx]);
@@ -660,7 +656,7 @@ void Blockchain::exportToJson(const std::string& filename) const {
             file << "      \"txRoot\": \"" << block.getTxRoot() << "\",\n";
             file << "      \"transactionCount\": " << block.getTransactions().size() << ",\n";
             
-            // Transactions array
+            // transactions array
             file << "      \"transactions\": [\n";
             const auto& txs = block.getTransactions();
             for (size_t j = 0; j < txs.size(); ++j) {
@@ -685,7 +681,7 @@ void Blockchain::exportToJson(const std::string& filename) const {
     std::cout << "Blockchain exported to " << filename << "\n";
 }
 
-// Detailed mining statistics su histograma
+// detailed mining statistics 
 void Blockchain::printDetailedStatistics() const {
     if (miningHistory_.empty()) {
         std::cout << "No mining statistics available.\n";
@@ -696,51 +692,15 @@ void Blockchain::printDetailedStatistics() const {
     std::cout << "DETAILED MINING STATISTICS\n";
     std::cout << std::string(60, '=') << "\n\n";
     
-    // Skaičiuojame vidutinį laiką ir bandymus
-    double totalTime = 0.0;
-    unsigned long long totalAttempts = 0;
-    double minTime = miningHistory_[0].miningTime;
-    double maxTime = miningHistory_[0].miningTime;
-    unsigned long long minAttempts = miningHistory_[0].attempts;
-    unsigned long long maxAttempts = miningHistory_[0].attempts;
-    
-    for (const auto& stat : miningHistory_) {
-        totalTime += stat.miningTime;
-        totalAttempts += stat.attempts;
-        if (stat.miningTime < minTime) minTime = stat.miningTime;
-        if (stat.miningTime > maxTime) maxTime = stat.miningTime;
-        if (stat.attempts < minAttempts) minAttempts = stat.attempts;
-        if (stat.attempts > maxAttempts) maxAttempts = stat.attempts;
-    }
-    
-    double avgTime = totalTime / miningHistory_.size();
-    double avgAttempts = static_cast<double>(totalAttempts) / miningHistory_.size();
-    
-    std::cout << "Blocks mined    : " << miningHistory_.size() << "\n";
-    std::cout << "Total time      : " << std::fixed << std::setprecision(3) 
-              << totalTime << " s\n";
-    std::cout << "Average time    : " << avgTime << " s\n";
-    std::cout << "Min/Max time    : " << minTime << " s / " << maxTime << " s\n";
-    std::cout << "Average attempts: " << std::fixed << std::setprecision(0) 
-              << avgAttempts << "\n";
-    std::cout << "Min/Max attempts: " << minAttempts << " / " << maxAttempts << "\n\n";
-    
-    // Histograma - kasimo laikas
-    std::cout << "Mining Time Histogram:\n";
+    std::cout << "Mining Times:\n";
     std::cout << std::string(60, '-') << "\n";
     
     for (const auto& stat : miningHistory_) {
         std::cout << "Block #" << std::setw(2) << stat.blockIndex << " | ";
-        
-        // Bar chart - kiekviena 0.01s = vienas simbolis
-        int barLength = static_cast<int>(stat.miningTime * 20); // scale 20x
-        if (barLength > 50) barLength = 50; // max 50 chars
-        
-        std::cout << std::string(barLength, '#') << " ";
         std::cout << std::fixed << std::setprecision(3) << stat.miningTime << "s";
         std::cout << " (" << stat.attempts << " attempts)\n";
     }
     
     std::cout << std::string(60, '-') << "\n";
-    std::cout << "Scale: # = 0.05 seconds\n\n";
+    std::cout << "\n";
 }

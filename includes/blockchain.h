@@ -67,7 +67,7 @@ private:
     std::vector<Block> chain_;
     int difficulty_;
     
-    // Mining statistics tracking
+    // kasimo statistikos sekimas
     struct MiningStats {
         double miningTime;
         unsigned long long attempts;

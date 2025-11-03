@@ -20,6 +20,12 @@ bool Ledger::canApply(const Transaction& tx) const {
     return senderBalance >= tx.getAmount();
 }
 
+bool Ledger::canApplyWithFee(const Transaction& tx, uint64_t fee) const {
+    uint64_t senderBalance = getBalance(tx.getFrom());
+    // reikia padengti suma + mokesti
+    return senderBalance >= (tx.getAmount() + fee);
+}
+
 bool Ledger::apply(const Transaction& tx) {
     // apsauga nuo underflow, jei balanso neuztenka - nieko nedarom
     uint64_t senderBalance = getBalance(tx.getFrom());
@@ -32,6 +38,21 @@ bool Ledger::apply(const Transaction& tx) {
     
     // didina gavejo balansa (jei nera, sukurs su 0)
     balances_[tx.getTo()] += tx.getAmount();
+    return true;
+}
+
+bool Ledger::applyWithFee(const Transaction& tx, const std::string& feeCollector, uint64_t fee) {
+    uint64_t senderBalance = getBalance(tx.getFrom());
+    uint64_t totalOut = tx.getAmount() + fee;
+    if (senderBalance < totalOut) {
+        return false;
+    }
+    // nuskaiciuojam suma + mokesti nuo siuntejo
+    balances_[tx.getFrom()] = senderBalance - totalOut;
+    // pervedam pagrindine suma gavejui
+    balances_[tx.getTo()] += tx.getAmount();
+    // mokestis atitenka feeCollector (miner)
+    balances_[feeCollector] += fee;
     return true;
 }
 

@@ -28,9 +28,13 @@ public:
 
     // patikrinti ar transakcija galima pritaikyti
     bool canApply(const Transaction& tx) const;
+    // patikrina ar transakcija galima pritaikyti su mokesciu
+    bool canApplyWithFee(const Transaction& tx, uint64_t fee) const;
 
     // pritaikyti transakcija (mazina sender, didina receiver) - grazina true jei pritaike
     bool apply(const Transaction& tx);
+    // pritaiko transakcija su mokesciu; mokestis pervedamas i feeCollector
+    bool applyWithFee(const Transaction& tx, const std::string& feeCollector, uint64_t fee);
 
     // pritaikyti kelias transakcijas
     bool applyMultiple(const std::vector<Transaction>& transactions);

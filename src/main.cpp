@@ -259,6 +259,8 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
     cout << "  Total coins in system: " << ledger.getTotalBalance() << "\n";
     cout << "  Balances updated for " << users.size() << " users\n";
     cout << "  (Use Ledger::print() to see all individual balances)\n\n";
+    // miner fee account balance
+    cout << "  Miner fees collected (MINER_FEE): " << ledger.getBalance("MINER_FEE") << " coins\n\n";
     
     printHeader("Blockchain Validation");
     blockchain.printStatistics();
