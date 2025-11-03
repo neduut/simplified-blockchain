@@ -85,13 +85,16 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 - Tikslas: imituoti kelių kalnakasių konkurenciją su laiko apribojimu.
 - Procesas:
   1) Iš `TxPool` suformuojami 5 kandidatiniai blokai (po ~100 patikrintų transakcijų kiekviename).
-  2) Visi kandidatai „kasami“ konkurencingai, bet tik ribotą laiką (pvz., 5 s per raundą).
-  3) Jei per raundą nei vienas neiškasa (neatrenka hash su pakankamu nulių skaičiumi) – laiko limitas padidinamas 1.5× ir kartojama (iki 10 raundų, kad nebūtų begalinio ciklo).
-  4) Pirmasis sėkmingai iškastas kandidatas laimi: jo transakcijos pritaikomos `Ledger`, jos pašalinamos iš `TxPool`, o blokas prijungiamas prie grandinės.
+  2) Visi kandidatai kasami konkurencingai vienu metu (paraleliskai).
+  3) Kiekvienas kandidatas kasamas atskirame threade. Pirmasis suradęs tinkamą hash'ą nustato bendrą `stopFlag`, ir visi kiti thread'ai nustoja kasti.
+  4) Jei per raundą nei vienas neiškasa (neatrenka hash su pakankamu nulių skaičiumi) – laiko limitas padidinamas 1.5× ir kartojama (iki 10 raundų, kad nebūtų begalinio ciklo).
+  5) Laimėtojo transakcijos pritaikomos `Ledger`, jos pašalinamos iš `TxPool`, o blokas prijungiamas prie grandinės.
 
 - API:
-  - `Blockchain::mineCandidateBlocks(TxPool&, Ledger&, size_t nTx=100, int numCandidates=5, double timeLimitSec=5.0)` – paleidžia vieną decentralizuoto kasimo etapą.
-  - `Blockchain::mineBlockWithTimeLimit(Block&, double timeLimitSec, unsigned long long& outNonce)` – kasa konkretų bloką, neviršydamas laiko limito; grąžina `true/false`.
+  - `Blockchain::mineCandidateBlocksParallel(TxPool&, Ledger&, size_t nTx=100, int numCandidates=5, double timeLimitSec=5.0, unsigned long long maxAttempts=0)` – paralelinis kandidatų kasimas su threads.
+  - `Blockchain::mineBlockWithTimeLimitStop(Block&, double timeLimitSec, unsigned long long maxAttempts, std::atomic<bool>& stopFlag, unsigned long long& outNonce)` – kasa konkretų bloką su stopFlag mechanizmu.
+
+- Įgyvendinimas: 5 thread'ai kasa 5 kandidatus vienu metu. `std::atomic<bool> stopFlag` ir `std::atomic<int> winner` naudojami koordinacijai. Pirmas laimėtojas sustabdo visus kitus.
 
 ## Blokų ir transakcijų kūrimas, kasimas, patikrinimas
 
@@ -158,9 +161,19 @@ while (true) {
 - Naudojama grandinės validacijoje `isChainValid()` — papildoma apsauga nuo duomenų sugadinimo
 - Tai nėra griežtas užduoties reikalavimas, bet stiprina vientisumo tikrinimą
 
+### Paralelinis kandidatų kasimas
+`mineCandidateBlocksParallel(...)`
+- Kiekvienas kandidatas kasamas atskirame threade (`std::thread`) su bendru `std::atomic<bool> stopFlag` ir `std::atomic<int> winner`.
+- Pirmasis suradęs tinkamą hash'ą nustato `winner` ir pakelia `stopFlag`, kiti thread'ai nustoja kasti.
+- Privalumai: žymiai trumpesnis raundų laikas ir realesnė konkurencijos imitacija.
+- Įjungimas: `src/main.cpp` keisti `mineCandidateBlocks(...)` į `mineCandidateBlocksParallel(...)`.
+- Pagrindinė užduoties versija (`mineCandidateBlocks`) kasa sekvenciškai (po vieną kandidatą, pirmas laimėtojas sustabdo).
+
 ## Interaktyvus užklausų menu
 
 Po pagrindinės programos vykdymo vartotojui suteikiama galimybė užklausti ir gauti informaciją apie konkrečią transakciją ar bloką. 
+
+Įvedimo klaidų gaudymas su 
 
 Į konsolę dėl aiškumo viskas vedama anglų kalba.
 
@@ -347,4 +360,12 @@ Transaction
 
 ---
 
- 
+# Versijos
+
+Kiekviena versija išsamiai aprašyta jos `README.md` faile.
+
+## v0.1
+lalala
+
+## v0.2
+lalala

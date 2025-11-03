@@ -50,12 +50,12 @@ static void log_session_start() {
     file << std::string(40, '-') << "\n";
 }
 
-// sukuriame logs katalogą jei jo nėra (Windows)
+// sukuria logs kataloga jei jo nera (Windows)
 static void ensure_logs_dir() {
 #ifdef _WIN32
     _mkdir("logs");
 #else
-    // galėtume pridėti POSIX mkdir, bet projekte fokusuojamės į Windows
+    // galima pridet POSIX mkdir, bet projekte fokusuojuos i Windows
 #endif
 }
 
@@ -231,8 +231,12 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
     for (int i = 0; i < blocksToMine; ++i) {
         cout << "\n========== Mining Block #" << i + 1 << " ==========\n";
         
-        // Naudojame kandidatinį kasimą: 5 kandidatai, 5s limitas
-        if (blockchain.mineCandidateBlocks(pool, ledger, 100, 5, 5.0)) {
+        // paralelinis kandidatu kasimas: 5 threads kasa 5 kandidatus vienu metu
+        // galima naudoti tik laiko limita, tik bandymu limita, arba abu:
+        // - 5.0, 0 = tik 5s limitas
+        // - 0.0, 50000 = tik 50k bandymų limitas
+        // - 5.0, 50000 = 5s ARBA 50k bandymu (kuris pirmas)
+        if (blockchain.mineCandidateBlocksParallel(pool, ledger, 100, 5, 5.0, 0)) {
             successfulBlocks++;
         } else {
             cout << "Failed to mine block\n";

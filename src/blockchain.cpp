@@ -5,6 +5,8 @@
 #include <sstream>
 #include <fstream>
 #include <iomanip>
+#include <thread>
+#include <atomic>
 
 Blockchain::Blockchain(int difficulty)
     : difficulty_(difficulty) 
@@ -82,6 +84,78 @@ bool Blockchain::mineBlockWithTimeLimit(Block& block, double timeLimitSec, unsig
     
     finalNonce = nonce;
     return false; // Time limit exceeded
+}
+
+// kasimas su laiko IR/ARBA bandymu limitu
+bool Blockchain::mineBlockWithLimits(Block& block, double timeLimitSec, unsigned long long attemptsLimit, unsigned long long& finalNonce) {
+    std::string target(difficulty_, '0');
+    std::string hash;
+    unsigned long long nonce = 0;
+    
+    Timer timer;
+    
+    // jei abu limitai 0 – error
+    if (timeLimitSec <= 0.0 && attemptsLimit == 0) {
+        finalNonce = 0;
+        return false;
+    }
+    
+    while (true) {
+        // tikrina laiko limita (jei nustatytas)
+        if (timeLimitSec > 0.0 && timer.elapsed() >= timeLimitSec) {
+            finalNonce = nonce;
+            return false; // Time limit exceeded
+        }
+        
+        // tikrinam bandymu limita (jei nustatytas)
+        if (attemptsLimit > 0 && nonce >= attemptsLimit) {
+            finalNonce = nonce;
+            return false; // attempts limit exceeded
+        }
+        
+        block.setNonce(nonce);
+        std::string blockData = block.toString();
+        hash = generate_hash(blockData);
+        
+        if (hash.substr(0, difficulty_) == target) {
+            block.setHash(hash);
+            finalNonce = nonce;
+            return true; // success
+        }
+        
+        nonce++;
+    }
+}
+
+// parallel mining 
+bool Blockchain::mineBlockWithTimeLimitStop(Block& block, double timeLimitSec, unsigned long long attemptsLimit,
+                                              unsigned long long& finalNonce, std::atomic<bool>& stopFlag) {
+    std::string target(difficulty_, '0');
+    std::string hash;
+    unsigned long long nonce = 0;
+
+    Timer timer;
+    bool useTime = (timeLimitSec > 0.0);
+    bool useAttempts = (attemptsLimit > 0);
+    
+    while (!stopFlag.load(std::memory_order_relaxed)) {
+        // tikrina laiko limita
+        if (useTime && timer.elapsed() >= timeLimitSec) break;
+        // tikrina bandymu limita
+        if (useAttempts && nonce >= attemptsLimit) break;
+        
+        block.setNonce(nonce);
+        std::string blockData = block.toString();
+        hash = generate_hash(blockData);
+        if (hash.substr(0, difficulty_) == target) {
+            block.setHash(hash);
+            finalNonce = nonce;
+            return true;
+        }
+        nonce++;
+    }
+    finalNonce = nonce;
+    return false;
 }
 
 void Blockchain::addBlock(const std::string& data) {
@@ -182,22 +256,37 @@ bool Blockchain::formBlockFromPool(TxPool& pool, Ledger& ledger, size_t nTx) {
 
 // v0.2: Decentralizuotas kasimas su kandidatiniais blokais
 bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx, 
-                                     int numCandidates, double timeLimitSec) {
+                                     int numCandidates, double timeLimitSec,
+                                     unsigned long long attemptsLimit) {
     if (pool.empty()) {
         std::cout << "Transaction pool is empty!\n";
         return false;
     }
     
     std::cout << "\n=== Decentralized Mining: " << numCandidates << " candidates ===\n";
-    std::cout << "Time limit per round: " << timeLimitSec << " seconds\n\n";
+    if (timeLimitSec > 0.0 && attemptsLimit > 0) {
+        std::cout << "Limits: " << timeLimitSec << " seconds OR " << attemptsLimit << " attempts\n\n";
+    } else if (timeLimitSec > 0.0) {
+        std::cout << "Time limit per round: " << timeLimitSec << " seconds\n\n";
+    } else if (attemptsLimit > 0) {
+        std::cout << "Attempts limit per round: " << attemptsLimit << " attempts\n\n";
+    }
     
     int round = 1;
     double currentTimeLimit = timeLimitSec;
+    unsigned long long currentAttemptsLimit = attemptsLimit;
     
     while (true) {
         std::cout << "--- Mining Round #" << round << " ---\n";
-        std::cout << "Time limit: " << std::fixed << std::setprecision(1) 
-                  << currentTimeLimit << "s\n\n";
+        if (currentTimeLimit > 0.0 && currentAttemptsLimit > 0) {
+            std::cout << "Limits: " << std::fixed << std::setprecision(1) 
+                     << currentTimeLimit << "s OR " << currentAttemptsLimit << " attempts\n\n";
+        } else if (currentTimeLimit > 0.0) {
+            std::cout << "Time limit: " << std::fixed << std::setprecision(1) 
+                     << currentTimeLimit << "s\n\n";
+        } else if (currentAttemptsLimit > 0) {
+            std::cout << "Attempts limit: " << currentAttemptsLimit << "\n\n";
+        }
         
         // Sukuriame kandidatinius blokus
         std::vector<Block> candidates;
@@ -246,7 +335,7 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
         
         std::cout << "\nMining " << candidates.size() << " candidates competitively...\n";
         
-        // Kasame konkuruojančius blokus
+        // Kasame konkuruojančius blokus (sekvenciškai, kaip užduotyje)
         Timer roundTimer;
         int winner = -1;
         unsigned long long bestNonce = 0;
@@ -256,13 +345,14 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
             unsigned long long nonce = 0;
             Timer candidateTimer;
             
-            bool success = mineBlockWithTimeLimit(candidates[i], currentTimeLimit, nonce);
+            bool success = mineBlockWithLimits(candidates[i], currentTimeLimit, currentAttemptsLimit, nonce);
             double elapsed = candidateTimer.elapsed();
             
             if (success && winner == -1) {
                 winner = static_cast<int>(i);
                 bestNonce = nonce;
                 bestTime = elapsed;
+                break; // Pirmas laimėtojas, daugiau neieškome
             }
         }
         
@@ -289,14 +379,155 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
             
             return true;
         } else {
-            // Nei vienas neiškastu - didinamas laikas
+            // Nei vienas neiškastu - didinamas laikas/bandymai
+            std::cout << "\nNo block mined with current limits. ";
+            if (currentTimeLimit > 0.0) {
+                currentTimeLimit *= 1.5;
+                std::cout << "Increasing time limit to " << std::fixed 
+                         << std::setprecision(1) << currentTimeLimit << "s";
+            }
+            if (currentAttemptsLimit > 0) {
+                currentAttemptsLimit = static_cast<unsigned long long>(currentAttemptsLimit * 1.5);
+                if (currentTimeLimit > 0.0) std::cout << " and ";
+                std::cout << "attempts to " << currentAttemptsLimit;
+            }
+            std::cout << "...\n\n";
+            round++;
+            
+            // Saugiklis nuo begalinio ciklo
+            if (round > 10) {
+                std::cout << "Too many rounds - aborting.\n";
+                return false;
+            }
+        }
+    }
+}
+
+// Papildomas: paralelinis kandidatų kasimas (su threads, kaip papildymas)
+bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_t nTx, 
+                                              int numCandidates, double timeLimitSec,
+                                              unsigned long long attemptsLimit) {
+    if (pool.empty()) {
+        std::cout << "Transaction pool is empty!\n";
+        return false;
+    }
+    
+    std::cout << "\n=== Parallel Decentralized Mining: " << numCandidates << " candidates ===\n";
+    std::cout << "Time limit per round: " << timeLimitSec << " seconds\n\n";
+    
+    int round = 1;
+    double currentTimeLimit = timeLimitSec;
+    
+    while (true) {
+        std::cout << "--- Mining Round #" << round << " ---\n";
+        std::cout << "Time limit: " << std::fixed << std::setprecision(1) 
+                  << currentTimeLimit << "s\n\n";
+        
+        // Sukuriame kandidatinius blokus
+        std::vector<Block> candidates;
+        std::vector<std::vector<Transaction>> candidateTxSets;
+        std::vector<std::vector<std::string>> candidateRemoveIds;
+        
+        for (int i = 0; i < numCandidates; ++i) {
+            std::vector<Transaction> selectedTx = pool.takeRandom(nTx);
+            if (selectedTx.empty()) break;
+            
+            std::vector<Transaction> validTx;
+            std::vector<std::string> toRemoveIds;
+            
+            for (const auto& tx : selectedTx) {
+                if (!tx.verifyId()) {
+                    toRemoveIds.push_back(tx.getId());
+                    continue;
+                }
+                if (ledger.canApply(tx)) {
+                    validTx.push_back(tx);
+                    toRemoveIds.push_back(tx.getId());
+                }
+            }
+            
+            if (validTx.empty()) continue;
+            
+            int newIndex = static_cast<int>(chain_.size());
+            std::string prevHash = getLastBlockHash();
+            Block candidate(newIndex, validTx, prevHash, difficulty_);
+            
+            candidates.push_back(candidate);
+            candidateTxSets.push_back(validTx);
+            candidateRemoveIds.push_back(toRemoveIds);
+            
+            std::cout << "Candidate #" << (i + 1) << ": " << validTx.size() 
+                     << " transactions\n";
+        }
+        
+        if (candidates.empty()) {
+            std::cout << "No valid candidate blocks!\n";
+            return false;
+        }
+        
+        std::cout << "\nMining " << candidates.size() << " candidates in parallel...\n";
+        
+        // Paralelinis kasimas su threads
+        Timer roundTimer;
+        std::atomic<bool> stopFlag{false};
+        std::atomic<int> winner{-1};
+        std::vector<unsigned long long> nonces(candidates.size(), 0);
+        std::vector<double> times(candidates.size(), 0.0);
+        std::vector<std::thread> threads;
+        threads.reserve(candidates.size());
+
+        for (size_t i = 0; i < candidates.size(); ++i) {
+            threads.emplace_back([&, i]() {
+                Timer t;
+                unsigned long long n = 0;
+                bool ok = mineBlockWithTimeLimitStop(candidates[i], currentTimeLimit, attemptsLimit, n, stopFlag);
+                times[i] = t.elapsed();
+                if (ok) {
+                    nonces[i] = n;
+                    int expected = -1;
+                    if (winner.compare_exchange_strong(expected, static_cast<int>(i))) {
+                        stopFlag.store(true, std::memory_order_relaxed);
+                    }
+                }
+            });
+        }
+        for (auto& th : threads) th.join();
+
+        int winIdx = winner.load();
+        unsigned long long bestNonce = 0;
+        double bestTime = 0.0;
+        if (winIdx >= 0) {
+            bestNonce = nonces[static_cast<size_t>(winIdx)];
+            bestTime = times[static_cast<size_t>(winIdx)];
+        }
+        
+        if (winIdx >= 0) {
+            std::cout << "\n*** Candidate #" << (winIdx + 1) << " WON! ***\n";
+            std::cout << "   Nonce: " << bestNonce 
+                     << " | Hash: " << candidates[winIdx].getHash()
+                     << " | Time: " << std::fixed << std::setprecision(3) 
+                     << bestTime << " s\n";
+            
+            for (const auto& tx : candidateTxSets[winIdx]) {
+                ledger.apply(tx);
+            }
+            
+            pool.eraseByIds(candidateRemoveIds[winIdx]);
+            chain_.push_back(candidates[winIdx]);
+            saveToFile(candidates[winIdx]);
+            
+            std::cout << "Block #" << candidates[winIdx].getIndex() 
+                     << " added to chain with " << candidateTxSets[winIdx].size() 
+                     << " transactions\n\n";
+            
+            return true;
+        } else {
             std::cout << "\nNo block mined in " << currentTimeLimit << "s. ";
             currentTimeLimit *= 1.5;
             std::cout << "Increasing time limit to " << std::fixed 
                      << std::setprecision(1) << currentTimeLimit << "s...\n\n";
             round++;
             
-            // Saugiklis nuo begalinio ciklo
             if (round > 10) {
                 std::cout << "Too many rounds - aborting.\n";
                 return false;

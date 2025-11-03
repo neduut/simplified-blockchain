@@ -4,6 +4,7 @@
 #include "ledger.h"
 #include <vector>
 #include <string>
+#include <atomic>
 
 class Blockchain {
 public:
@@ -15,9 +16,15 @@ public:
     // block su transakcijom is pool
     bool formBlockFromPool(TxPool& pool, Ledger& ledger, size_t nTx = 100);
     
-    // v0.2: decentralizuotas kasimas su kandidatiniais blokais
+    // v0.2: decentralizuotas kasimas su kandidatiniais blokais (sekvencinis)
     bool mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx = 100, 
-                             int numCandidates = 5, double timeLimitSec = 5.0);
+                             int numCandidates = 5, double timeLimitSec = 5.0,
+                             unsigned long long attemptsLimit = 0); // 0 = neribota
+    
+    // Papildomas: paralelinis kandidatų kasimas (su threads)
+    bool mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_t nTx = 100, 
+                                      int numCandidates = 5, double timeLimitSec = 5.0,
+                                      unsigned long long attemptsLimit = 0);
     
     bool isChainValid() const;
     void printChain() const;
@@ -34,6 +41,11 @@ private:
     
     // v0.2: kasimas su laiko limitu (grąžina true jei iškastu, false jei per lėtas)
     bool mineBlockWithTimeLimit(Block& block, double timeLimitSec, unsigned long long& finalNonce);
+    // v0.2: kasimas su bandymų limitu (arba laiko, jei timeLimitSec > 0)
+    bool mineBlockWithLimits(Block& block, double timeLimitSec, unsigned long long attemptsLimit, unsigned long long& finalNonce);
+    // v0.2+: kasimas su laiko/bandymų limitu ir bendru stop signalu (naudojama paraleliniam kasimui)
+    bool mineBlockWithTimeLimitStop(Block& block, double timeLimitSec, unsigned long long attemptsLimit, 
+                                     unsigned long long& finalNonce, std::atomic<bool>& stopFlag);
     
     std::string getLastBlockHash() const;
     void saveToFile(const Block& block) const;
