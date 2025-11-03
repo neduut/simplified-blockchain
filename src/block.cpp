@@ -69,7 +69,11 @@ std::string Block::toString() const {
 
 void Block::printBlock() const {
     std::cout << "----------------------------------------\n";
-    std::cout << "Block #" << index_ << " (v" << version_ << ")\n";
+        if (version_ == 1) {
+            std::cout << "Block #" << index_ << "\n";
+        } else {
+            std::cout << "Block #" << index_ << " (parallel)\n";
+        }
     std::cout << "Timestamp : " << timestamp_ << "\n";
     
     if (version_ == 1) {

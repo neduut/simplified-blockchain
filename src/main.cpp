@@ -270,6 +270,9 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
     }
     
     blockchain.printChain();
+    
+    // detalesne kasimo statistika
+    blockchain.printDetailedStatistics();
 }
 
 int main() {

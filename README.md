@@ -387,6 +387,7 @@ Transaction
 
 1. `README.md` generavimas
 2. Blockchain veikimo principo supratimas
+3. Konsolės išvedimo formavimas
 
 
 ---

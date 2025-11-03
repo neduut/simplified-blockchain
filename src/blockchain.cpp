@@ -16,7 +16,7 @@ Blockchain::Blockchain(int difficulty)
     std::cout << "Difficulty: " << difficulty << "\n";
     std::cout << "==============================================\n\n";
 
-    // Genesis block
+    // Genesis blokas
     Block genesis(0, "Genesis Block", "0");
     mineBlock(genesis);
     chain_.push_back(genesis);
@@ -42,6 +42,9 @@ void Blockchain::mineBlock(Block& block) {
         if (hash.substr(0, difficulty_) == target) {
             block.setHash(hash);
             double elapsed = timer.elapsed();
+            
+            // Track mining statistics
+            miningHistory_.push_back({elapsed, nonce + 1, block.getIndex()});
 
             std::cout << "Block #" << block.getIndex() << " mined!\n";
             std::cout << "   Nonce: " << nonce 
@@ -516,6 +519,9 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
             chain_.push_back(candidates[winIdx]);
             saveToFile(candidates[winIdx]);
             
+            // detalesne statistika paraleliniam kasimui
+            miningHistory_.push_back({bestTime, bestNonce, candidates[winIdx].getIndex()});
+            
             std::cout << "Block #" << candidates[winIdx].getIndex() 
                      << " added to chain with " << candidateTxSets[winIdx].size() 
                      << " transactions\n\n";
@@ -677,4 +683,64 @@ void Blockchain::exportToJson(const std::string& filename) const {
     file.close();
     
     std::cout << "Blockchain exported to " << filename << "\n";
+}
+
+// Detailed mining statistics su histograma
+void Blockchain::printDetailedStatistics() const {
+    if (miningHistory_.empty()) {
+        std::cout << "No mining statistics available.\n";
+        return;
+    }
+    
+    std::cout << "\n" << std::string(60, '=') << "\n";
+    std::cout << "DETAILED MINING STATISTICS\n";
+    std::cout << std::string(60, '=') << "\n\n";
+    
+    // Skaičiuojame vidutinį laiką ir bandymus
+    double totalTime = 0.0;
+    unsigned long long totalAttempts = 0;
+    double minTime = miningHistory_[0].miningTime;
+    double maxTime = miningHistory_[0].miningTime;
+    unsigned long long minAttempts = miningHistory_[0].attempts;
+    unsigned long long maxAttempts = miningHistory_[0].attempts;
+    
+    for (const auto& stat : miningHistory_) {
+        totalTime += stat.miningTime;
+        totalAttempts += stat.attempts;
+        if (stat.miningTime < minTime) minTime = stat.miningTime;
+        if (stat.miningTime > maxTime) maxTime = stat.miningTime;
+        if (stat.attempts < minAttempts) minAttempts = stat.attempts;
+        if (stat.attempts > maxAttempts) maxAttempts = stat.attempts;
+    }
+    
+    double avgTime = totalTime / miningHistory_.size();
+    double avgAttempts = static_cast<double>(totalAttempts) / miningHistory_.size();
+    
+    std::cout << "Blocks mined    : " << miningHistory_.size() << "\n";
+    std::cout << "Total time      : " << std::fixed << std::setprecision(3) 
+              << totalTime << " s\n";
+    std::cout << "Average time    : " << avgTime << " s\n";
+    std::cout << "Min/Max time    : " << minTime << " s / " << maxTime << " s\n";
+    std::cout << "Average attempts: " << std::fixed << std::setprecision(0) 
+              << avgAttempts << "\n";
+    std::cout << "Min/Max attempts: " << minAttempts << " / " << maxAttempts << "\n\n";
+    
+    // Histograma - kasimo laikas
+    std::cout << "Mining Time Histogram:\n";
+    std::cout << std::string(60, '-') << "\n";
+    
+    for (const auto& stat : miningHistory_) {
+        std::cout << "Block #" << std::setw(2) << stat.blockIndex << " | ";
+        
+        // Bar chart - kiekviena 0.01s = vienas simbolis
+        int barLength = static_cast<int>(stat.miningTime * 20); // scale 20x
+        if (barLength > 50) barLength = 50; // max 50 chars
+        
+        std::cout << std::string(barLength, '#') << " ";
+        std::cout << std::fixed << std::setprecision(3) << stat.miningTime << "s";
+        std::cout << " (" << stat.attempts << " attempts)\n";
+    }
+    
+    std::cout << std::string(60, '-') << "\n";
+    std::cout << "Scale: # = 0.05 seconds\n\n";
 }

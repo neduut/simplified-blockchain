@@ -39,6 +39,7 @@ public:
     bool isChainValid() const;
     void printChain() const;
     void printStatistics() const;
+    void printDetailedStatistics() const; // Detalesnė statistika su histograma
     
     // JSON eksportas
     void exportToJson(const std::string& filename) const;
@@ -65,4 +66,13 @@ private:
 
     std::vector<Block> chain_;
     int difficulty_;
+    
+    // Mining statistics tracking
+    struct MiningStats {
+        double miningTime;
+        unsigned long long attempts;
+        int blockIndex;
+    };
+    std::vector<MiningStats> miningHistory_;
+
 };
