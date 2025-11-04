@@ -17,7 +17,7 @@ Programa automatiškai sugeneruos 1000 vartotojų, 10000 transakcijų, formuos b
 
 ## Architektūra
 
-Projektas yra suskirstytas į atskirus aiškius failus:
+Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiškius failus:
 
 ### Pagrindiniai failai
 
@@ -83,13 +83,13 @@ Projektas yra suskirstytas į atskirus aiškius failus:
 - `txRoot` yra tikras Merkle Root.
 
 ### Decentralizuotas kasimas
-- Tikslas: imituoti 5 ka didatinių blokų kasimą su laiko apribojimu.
+- Tikslas: imituoti 5 kandidatinių blokų kasimą su laiko apribojimu.
 - Procesas:
-  1) Iš `TxPool` suformuojami 5 kandidatiniai blokai (po ~100 patikrintų transakcijų kiekviename).
-  2) Visi kandidatai kasami konkurencingai vienu metu (paraleliskai).
-  3) Kiekvienas kandidatas kasamas atskirame threade. Pirmasis suradęs tinkamą hash'ą nustato bendrą `stopFlag`, ir visi kiti thread'ai nustoja kasti.
-  4) Jei per raundą nei vienas neiškasa (neatrenka hash su pakankamu nulių skaičiumi) – laiko limitas padidinamas 1.5× ir kartojama (iki 10 raundų, kad nebūtų begalinio ciklo).
-  5) Laimėtojo transakcijos pritaikomos `Ledger`, jos pašalinamos iš `TxPool`, o blokas prijungiamas prie grandinės.
+1. Iš `TxPool` suformuojami 5 kandidatiniai blokai (po ~100 patikrintų transakcijų kiekviename).
+2. Visi kandidatai kasami konkurencingai vienu metu (paraleliskai).
+3. Kiekvienas kandidatas kasamas atskirame threade. Pirmasis suradęs tinkamą hash'ą nustato bendrą `stopFlag`, ir visi kiti thread'ai nustoja kasti.
+4. Jei per raundą nei vienas neiškasa (neatrenka hash su pakankamu nulių skaičiumi) – laiko limitas padidinamas 1.5× ir kartojama (iki 10 raundų, kad nebūtų begalinio ciklo).
+5. Laimėtojo transakcijos pritaikomos `Ledger`, jos pašalinamos iš `TxPool`, o blokas prijungiamas prie grandinės.
 
 - API:
   - `Blockchain::mineCandidateBlocksParallel(TxPool&, Ledger&, size_t nTx=100, int numCandidates=5, double timeLimitSec=5.0, unsigned long long maxAttempts=0)` – paralelinis kandidatų kasimas su threads.
@@ -288,7 +288,6 @@ while (true) {
 - Saugojamos kiekvieno bloko transakcijos ir Merkle Tree.
 
 ### Merkle Root diagnostika (papildoma validacija)
-- `isChainValid()` perskaičiuoja Merkle Root iš Tx ID ir palygina su saugomu `txRoot`.
 - Užklausiant konkretų bloką galima atspausdinti Merkle medžio struktūrą (pasirenkama interaktyviai).
 
 ### Paralelinis kandidatų kasimas
@@ -315,51 +314,12 @@ Options:
   0 - Exit
 ```
 
-### Gerosios OOP praktikos
-Projektas naudoja modernius C++17 standarto principus:
-
-**Rule of Five/Zero**:
-- Visos klasės turi aiškiai apibrėžtą kopijavimo/perkėlimo semantiką
-- `Blockchain`, `Timer` - išjungtas kopijavimas (per dideli objektai / unique per scope)
-- `Block`, `Transaction`, `User`, `Ledger`, `TxPool` - default kopijavimas/perkėlimas (naudoja tik STL konteinerius)
-- Move konstruktoriai ir operatoriai pažymėti `noexcept`
-
-**Const correctness**:
-- Visi getteriai grąžina `const&` (string, vector) vietoj kopijų - efektyviau
-- Metodai, kurie nekeičia būsenos, pažymėti `const`
-- Read-only operacijos pažymėtos `const noexcept` - optimizacijos ir saugumo garantija
-
-**Explicit konstruktoriai**:
-- `Blockchain(int difficulty)` - `explicit` apsaugo nuo netikėto konvertavimo
-
-**RAII (Resource Acquisition Is Initialization)**:
-- `Timer` klasė automatiškai matuoja laiką nuo sukūrimo
-- STL konteineriai (`vector`, `unordered_map`) automatiškai tvarko atmintį
-- Nėra manual `new/delete` - viskas tvarkoma automatiškai
-
-**Noexcept garantijos**:
-- Visi getteriai: `noexcept` - garantuoja, kad neįvyks exception
-- Move operacijos: `noexcept` - leidžia STL optimizacijas (pvz., `std::vector` realokacija)
-- Paprastos operacijos (`size()`, `empty()`, `clear()`) - `noexcept`
-
-**Enkapsuliacija**:
-- Visi duomenų laukai `private`
-- Prieiga tik per getterius/setterius
-- Vidiniai helper metodai (`mineBlockWithTimeLimit`, `getLastBlockHash`) - `private`
-
 ### Transakcijų mokestis (fees)
 - Fiksuotas mokestis: `TX_FEE = 1` moneta už kiekvieną transakciją.
 - Tikrinimas: `Ledger::canApplyWithFee(tx, fee)` – reikalauja, kad siuntėjas turėtų `amount + fee`.
 - Pritaikymas: `Ledger::applyWithFee(tx, feeCollector, fee)` – suma `amount` pervedama gavėjui, `fee` – `MINER_FEE`.
 - Rezultatuose rodoma eilutė: `Miner fees collected (MINER_FEE): X coins`.
 - Mokesčiai tik perskirstomi (nekuria naujų monetų). Bendrą pasiūlą didina tik `BLOCK_REWARD` per coinbase.
-
-### JSON eksportas (išjungtas pagal nutylėjimą)
-- Per-bloko JSON failai į `logs/` dabar nerašomi pagal nutylėjimą.
-- Norėdami įjungti eksportą vienai sesijai, paleiskite su aplinkos kintamuoju `EXPORT_LOGS=1`.
-- `logs/` aplankas yra ignoruojamas `.gitignore`, kad logai nepatektų į repozitoriją.
-
-Papildomai, diagnostinės konsolės sekcijos (pvz., „Transaction ID Validation (Sample)“, detali kasimo statistika) yra slėptos pagal nutylėjimą. Norėdami jas įjungti, naudokite `SHOW_TESTS=1`.
 
 
 ## Projekto veikimo demonstracija
