@@ -1,20 +1,6 @@
-# Simplified Blockchain
+﻿# Simplified Blockchain
 
-Paprastas blockchain projektas su Proof-of-Work algoritmu, transakcijomis ir **UTXO modeliu**.
-
-## ⚠️ Versijos
-
-**v0.2** (dabartinė):
-- **Perrašyta į pilną UTXO sistemą**
-- Balansai skaičiuojami iš neišleistų output'ų (Unspent Transaction Outputs)
-- Transakcijos turi inputs (nuorodos į ankstesnius outputs) ir outputs (nauji UTXO)
-- Mokesčiai implicit (inputų suma - outputų suma)
-- Coinbase transakcijos kuria naujus UTXO iš nieko (block reward + fees)
-
-**v0.1** (senesnė):
-- Naudojo paprastą Account modelį (balances_ map)
-- Transakcijos: from → to, amount
-- Mokesčiai: fiksuota 1 moneta, pridedama prie MINER_FEE sąskaitos
+Blockchain projektas su Proof-of-Work algoritmu, transakcijomis ir **UTXO modeliu**.
 
 ## Apie projektą
 
@@ -31,7 +17,7 @@ Programa automatiškai sugeneruos 1000 vartotojų, 10000 transakcijų, formuos b
 
 ## Architektūra
 
-Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiškius failus:
+Projektas yra suskirstytas į atskirus aiškius failus:
 
 ### Pagrindiniai failai
 
@@ -111,6 +97,142 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 
 - Įgyvendinimas: 5 thread'ai kasa 5 kandidatus vienu metu. `std::atomic<bool> stopFlag` ir `std::atomic<int> winner` naudojami koordinacijai. Pirmas laimėtojas sustabdo visus kitus.
 
+## PSEUDO-KODAI
+
+Žemiau – sutrumpintos, svarbiausios vietos kaip pseudo-kodas, be implementacijos detalių.
+
+### Ledger (UTXO) – tikrinimas ir pritaikymas
+
+```pseudo
+// Raktas UTXO žemėlapiui
+key(txid, index) -> txid + ":" + to_string(index)
+
+canApply(tx):
+  sumInputs  := 0
+  sumOutputs := 0
+  for inp in tx.inputs:
+    utxo := UTXO[key(inp.prevTxId, inp.outputIndex)]
+    if utxo not exists: return false  // trūksta įėjimo
+    sumInputs += utxo.amount
+  for out in tx.outputs:
+    sumOutputs += out.amount
+  return sumInputs >= sumOutputs      // implicit fee = inputs - outputs
+
+apply(tx):
+  assert canApply(tx)
+  // Išleisti (pašalinti) įėjimus
+  for inp in tx.inputs:
+    erase UTXO[key(inp.prevTxId, inp.outputIndex)]
+  // Sukurti naujus išėjimus (UTXO)
+  for i, out in enumerate(tx.outputs):
+    UTXO[key(tx.id, i)] = out
+```
+
+### Transaction ID ir coinbase atpažinimas
+
+```pseudo
+// ID = hash(visi įėjimai + visi išėjimai)
+computeTxId(tx):
+  buf := []
+  for inp in tx.inputs:
+    buf.append(inp.prevTxId)
+    buf.append(to_bytes(inp.outputIndex))
+  for out in tx.outputs:
+    buf.append(out.receiver)
+    buf.append(to_bytes(out.amount))
+  return HASH(buf)
+
+isCoinbase(tx):
+  return len(tx.inputs) == 1 and tx.inputs[0].prevTxId == "coinbase"
+```
+
+### Coinbase (unikalus) kūrimas kandidato bloke
+
+```pseudo
+newIndex      := chain.length()        // bloko indeksas
+coinbaseInput := TxInput("coinbase", newIndex)
+reward        := blockReward + sum(fees of selectedTx)
+coinbaseOut   := TxOutput(minerAddress, reward)
+coinbaseTx    := Transaction([coinbaseInput], [coinbaseOut])
+
+// Įdėti į pradžią, kad fee priklausytų šiam blokui
+txSet := [coinbaseTx] + selectedTx
+```
+
+### Paralelinis decentralizuotas kasimas (5 kandidatai)
+
+```pseudo
+winner   := -1
+stopFlag := false
+candidates := [ buildCandidate(nTx) for i in 1..numCandidates ]
+
+for round in 1..maxRounds:
+  launch threads:
+    for i in 1..numCandidates:
+      thread i:
+        ok, nonce, hash := mineWithTimeLimit(candidates[i], timeLimit, stopFlag)
+        if ok and not stopFlag:
+          winner   := i
+          stopFlag := true
+  join all threads
+  if winner != -1: break
+  timeLimit := timeLimit * 1.5
+
+if winner != -1:
+  ids := [ tx.id for tx in candidates[winner].txs ]
+  for tx in candidates[winner].txs: ledger.apply(tx)
+  pool.eraseByIds(ids)
+  pool.removeInvalid(ledger, TX_FEE)
+  chain.push(candidates[winner])
+```
+
+### Merkle Root skaičiavimas iš Tx ID
+
+```pseudo
+merkleRoot(leaves):               // leaves = [tx.id]
+  if leaves.empty(): return ZERO
+  cur := leaves
+  while len(cur) > 1:
+    nxt := []
+    for j in range(0, len(cur), 2):
+      L := cur[j]
+      R := cur[j+1] if j+1 < len(cur) else L   // dubliavimas jei nelyginis
+      nxt.push( HASH(L + R) )
+    cur := nxt
+  return cur[0]
+```
+
+### TxPool – nebegaliojančių šalinimas
+
+```pseudo
+removeInvalid(ledger, fee):
+  toRemove   := set()
+  usedInputs := set()
+  for tx in pool:
+    if not ledger.canApply(tx):
+      toRemove.add(tx.id)
+      continue
+    for inp in tx.inputs:
+      k := key(inp.prevTxId, inp.outputIndex)
+      if k in usedInputs:         // konfliktuoja dėl to paties UTXO
+        toRemove.add(tx.id)
+      else:
+        usedInputs.add(k)
+  eraseByIds(toRemove)
+  return size(toRemove)
+```
+
+### Užklausa pagal transakcijos ID prefiksą
+
+```pseudo
+findTxByPrefix(prefix):
+  for block in chain:
+    for tx in block.txs:
+      if tx.id.startsWith(prefix):
+        return (tx, block.index)
+  return null
+```
+
 ## Blokų ir transakcijų kūrimas, kasimas, patikrinimas
 
 ### Transakcijų kūrimas
@@ -160,28 +282,38 @@ while (true) {
 ### Custom hash funkcija
 - Pradžioje naudojau Base62, bet su difficulty=2 per 41M+ nonces nerado "00" pradžios, todėl pakeičiau į HEX 
 
-### Account model
-- Vietoje UTXO naudoju Account model (Ledger su balansais)
-- Paprastesnis implementuoti
-- `canApply()` pre-check + `apply()` su underflow apsauga
 
-### Logging į atskirą logs/ aplanką
-- Kiekvienas blokas išsaugomas į `logs/blockchain_log.txt` su pilnais headeriais
-- Visos transakcijos išsaugomos į `logs/merkle_log.txt`
-- Sesijos pradžioje: `date_utc` žymė
-- Bloko info: Version, Tx Root, Difficulty, Nonce, Prev Hash, Hash
+### Logging / eksportas į logs/
+- JSON eksportas į `logs/block_#.json` įjungiamas `EXPORT_LOGS=1`.
+- Saugojamos kiekvieno bloko transakcijos ir Merkle Tree.
 
 ### Merkle Root diagnostika (papildoma validacija)
-- `Block::recomputeTxRoot()` ir `Block::verifyTxRoot()` metodai leidžia perskaičiuoti ir sulyginti Merkle Root su išsaugotu `txRoot`
-- Naudojama grandinės validacijoje `isChainValid()` — papildoma apsauga nuo duomenų sugadinimo
-- Tai nėra griežtas užduoties reikalavimas, bet stiprina vientisumo tikrinimą
+- `isChainValid()` perskaičiuoja Merkle Root iš Tx ID ir palygina su saugomu `txRoot`.
+- Užklausiant konkretų bloką galima atspausdinti Merkle medžio struktūrą (pasirenkama interaktyviai).
 
 ### Paralelinis kandidatų kasimas
 `mineCandidateBlocksParallel(...)`
 - Kiekvienas kandidatas kasamas atskirame threade (`std::thread`) su bendru `std::atomic<bool> stopFlag` ir `std::atomic<int> winner`.
 - Pirmasis suradęs tinkamą hash'ą nustato `winner` ir pakelia `stopFlag`, kiti thread'ai nustoja kasti.
 - Privalumai: žymiai trumpesnis raundų laikas ir realesnė konkurencijos imitacija.
-- Pagrindinė programos versija naudoja šį paralelinio kasimo variantą (`main.cpp`, eilutė ~239).
+- Pagrindinė programos versija naudoja šį paralelinio kasimo variantą (`main.cpp`).
+
+
+## Interaktyvus užklausų menu
+
+Po pagrindinės programos vykdymo vartotojui suteikiama galimybė užklausti ir gauti informaciją apie konkrečią transakciją ar bloką. 
+- Interaktyvus meniu palaiko paiešką pagal ID arba prefiksą (case-insensitive).
+- Ieškoma tiek pool’e (nepatvirtintos), tiek blokuose (patvirtintos); radus kelis – rodoma pasirinkimų lentelė.
+- Į konsolę dėl aiškumo viskas vedama anglų kalba.
+
+
+### Funkcionalumas
+```
+Options:
+  1 - Query block by number
+  2 - Query transaction by ID/prefix
+  0 - Exit
+```
 
 ### Gerosios OOP praktikos
 Projektas naudoja modernius C++17 standarto principus:
@@ -220,7 +352,7 @@ Projektas naudoja modernius C++17 standarto principus:
 - Tikrinimas: `Ledger::canApplyWithFee(tx, fee)` – reikalauja, kad siuntėjas turėtų `amount + fee`.
 - Pritaikymas: `Ledger::applyWithFee(tx, feeCollector, fee)` – suma `amount` pervedama gavėjui, `fee` – `MINER_FEE`.
 - Rezultatuose rodoma eilutė: `Miner fees collected (MINER_FEE): X coins`.
-- Monetų suma sistemoje nesikeičia (mokestis tik perskirstomas).
+- Mokesčiai tik perskirstomi (nekuria naujų monetų). Bendrą pasiūlą didina tik `BLOCK_REWARD` per coinbase.
 
 ### JSON eksportas (išjungtas pagal nutylėjimą)
 - Per-bloko JSON failai į `logs/` dabar nerašomi pagal nutylėjimą.
@@ -229,144 +361,10 @@ Projektas naudoja modernius C++17 standarto principus:
 
 Papildomai, diagnostinės konsolės sekcijos (pvz., „Transaction ID Validation (Sample)“, detali kasimo statistika) yra slėptos pagal nutylėjimą. Norėdami jas įjungti, naudokite `SHOW_TESTS=1`.
 
-## Interaktyvus užklausų menu
-
-Po pagrindinės programos vykdymo vartotojui suteikiama galimybė užklausti ir gauti informaciją apie konkrečią transakciją ar bloką. 
-
-Įvedimo klaidų gaudymas su 
-
-Į konsolę dėl aiškumo viskas vedama anglų kalba.
-
-
-### Funkcionalumas
-```
-Options:
-  1 - Query block by number
-  2 - Query transaction by ID
-  0 - Exit
-```
 
 ## Projekto veikimo demonstracija
 
 ### Konsolės išvestis 
-
-```
-==============================================
-Simplified Blockchain
-Difficulty: 3
-==============================================
-
-Mining Block #0 (target: '000')...
-Block #0 mined!
-   Nonce: 2360 | Hash: 0003e19da5388965d0631e7219d83897b7c2e3a0b3d3a9dfe4f7b1f1e2a3c4d5 | Time: 0.043 s | Attempts: 2361
-
-Genesis block created!
-
-Generating ~1000 users...
-Created 1000 users
-Total coins in system: 501234567
-
-Generating ~10000 transactions...
-Generated 10000 transactions
-All transactions saved to logs/merkle_log.txt
-
-Transaction Pool (size: 10000)
-----------------------------------------
-  Showing first 5 transactions:
-  [1] e98f1cba... -> b1355516... : 65 coins
-  [2] 78028d76... -> e98f1cba... : 67 coins
-  [3] e98f1cba... -> b1355516... : 32 coins
-  [4] 78028d76... -> 1d9e9c93... : 14 coins
-  [5] 78028d76... -> 73138d67... : 100 coins
-  ... and 9995 more
-  (See logs/merkle_log.txt for all transactions)
-
-============================================================
-Mining Blocks with Transactions
-============================================================
-
---- Mining Block #1 ---
-
-Forming block from 100 transactions...
-   100 valid transactions selected
-Mining Block #1 (target: '000')...
-Block #1 mined!
-   Nonce: 2757 | Hash: 0005e69648968f559092e6d11ca9d61e5f4b3a2c1d0e9f8a7b6c5d4e3f2a1b0c | Time: 0.130 s | Attempts: 2758
-
-Block #1 added to chain with 100 transactions
-
-[... 2 more blocks ...]
-
-============================================================
-Results
-============================================================
-
-Total mining time: 0.63 seconds
-Blocks mined: 5
-Transactions remaining in pool: 9500
-
-Final balance summary:
-  Total coins in system: 501234567
-  Balances updated for 1000 users
-  (Use Ledger::print() to see all individual balances)
-
-Miner fees collected (MINER_FEE): 500 coins
-
-==================================================
-BLOCKCHAIN STATISTICS
-==================================================
-Total blocks  : 6
-Difficulty    : 3 (hash starts with 000)
-Chain valid   : YES
-Average nonce : 630.20
-==================================================
-
-============================================================
-DETAILED MINING STATISTICS
-============================================================
-Mining Times:
-------------------------------------------------------------
-Block # 0 | 0.166s (9987 attempts)
-Block # 1 | 0.318s (7084 attempts)
-Block # 2 | 0.274s (6123 attempts)
-Block # 3 | 0.201s (5039 attempts)
-Block # 4 | 0.145s (4120 attempts)
-Block # 5 | 0.189s (4980 attempts)
-------------------------------------------------------------
-
-Blockchain exported to logs/blockchain_export.json
-
-Blockchain is VALID!
-
-============================================================
-Query System
-============================================================
-
-You can now query blocks and transactions.
-
-Options:
-  1 - Query block by number
-  2 - Query transaction by ID
-  0 - Exit
-Choose option: 1
-Enter block number (0-5): 1
-
-============================================================
-BLOCK #1 DETAILS
-============================================================
-----------------------------------------
-Block #1 (parallel)
-Timestamp : 1761501491
-Tx Count  : 100
-Tx Root   : c2304964b1f8396b7d2f4a1e0c9b8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c
-Difficulty: 3
-Nonce     : 2757
-Prev Hash : 0003e19da5388965d0631e7219d83897b7c2e3a0b3d3a9dfe4f7b1f1e2a3c4d5
-Hash      : 0005e69648968f559092e6d11ca9d61e5f4b3a2c1d0e9f8a7b6c5d4e3f2a1b0c
-----------------------------------------
-```
-
-### Konsolės išvestis (decentralizuotas kasimas)
 
 ```
 ============================================================
@@ -402,9 +400,9 @@ Results
 
 Total mining time: 0.63 seconds
 Blocks mined: 5
-Transactions remaining in pool: 9500
+Transactions remaining in pool: 4697
 
-Miner fees collected (MINER_FEE): 500 coins
+  Miner (fees + rewards) [MINER_FEE]: 745 coins
 
 ============================================================
 Blockchain Validation
@@ -431,6 +429,18 @@ Transaction
   Time: 1761501491
 ```
 
+### Bloko pavyzdys
+```
+Block #1 (parallel)
+Timestamp : 1761501491
+Tx Count  : 100
+Tx Root   : c2304964b1f8396b7d2f4a1e0c9b8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c
+Difficulty: 3
+Nonce     : 2757
+Prev Hash : 0003e19da5388965d0631e7219d83897b7c2e3a0b3d3a9dfe4f7b1f1e2a3c4d5
+Hash      : 0005e69648968f559092e6d11ca9d61e5f4b3a2c1d0e9f8a7b6c5d4e3f2a1b0c
+```
+
 ## AI pagalba 
 
 - Bendras blockchain veikimo principo supratimas
@@ -442,7 +452,7 @@ Transaction
 - Transakcijų mokesčio integracija
 - Transakcijos paieška pagal prefix'ą
 - Pagalba su paralelinio kasimo įgyvendinimu
-- Pagalba su UTXO realizavimu
+- UTXO realizavimas
 - Pagalba su kodo klaidom
 - Kodo peržiūra ir patarimai
 - `README.md` formavimas
