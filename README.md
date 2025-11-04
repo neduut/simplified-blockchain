@@ -1,19 +1,31 @@
 # Simplified Blockchain
 
-Paprastas blockchain projektas su Proof-of-Work algoritmu, transakcijomis ir balansų sistema.
+Paprastas blockchain projektas su Proof-of-Work algoritmu, transakcijomis ir **UTXO modeliu**.
+
+## ⚠️ Versijos
+
+**v0.2** (dabartinė):
+- **Perrašyta į pilną UTXO sistemą**
+- Balansai skaičiuojami iš neišleistų output'ų (Unspent Transaction Outputs)
+- Transakcijos turi inputs (nuorodos į ankstesnius outputs) ir outputs (nauji UTXO)
+- Mokesčiai implicit (inputų suma - outputų suma)
+- Coinbase transakcijos kuria naujus UTXO iš nieko (block reward + fees)
+
+**v0.1** (senesnė):
+- Naudojo paprastą Account modelį (balances_ map)
+- Transakcijos: from → to, amount
+- Mokesčiai: fiksuota 1 moneta, pridedama prie MINER_FEE sąskaitos
 
 ## Apie projektą
 
 Projektas realizuoja blokų grandinę su:
-- 1000 vartotojų su atsitiktiniais pradiniais balansais (nuo 100 iki 1 000 000 monetų)
+- 1000 vartotojų su atsitiktiniais pradiniais UTXO (nuo 100 iki 1 000 000 monetų)
 - Proof-of-Work kasimo procesu (difficulty = 3, hash turi prasidėti "000...")
-- Account model balansų skaičiavimu ir patikrinimu
+- **UTXO model** balansų skaičiavimu ir patikrinimu
 - Nuosava hash funkcija iš praeito projekto
 - Blokų grandinės patikrinimu
-- Fiksuotu transakcijų mokesčiu (1 moneta už transakciją), kredituojamu į MINER_FEE sąskaitą
+- Fiksuotu transakcijų mokesčiu (implicit per UTXO input-output skirtumą)
 - Interaktyvus užklausų menu
- - JSON eksportu į `logs/blockchain_export.json`
- - (Pasirenkamai) UTXO modeliu greta Account modelio
 
 Programa automatiškai sugeneruos 1000 vartotojų, 10000 transakcijų, formuos blokus su po 100 atsitiktinių transakcijų.
 
@@ -34,14 +46,11 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 - `formBlockFromPool()` - formuoja bloką iš transaction pool
 - `isChainValid()` - validuoja visą grandinę (prev hash, rehash, difficulty)
 - `printChain()`, `printStatistics()` - vizualizacija
- - `mineCandidateBlocksParallel()` ir `mineCandidateBlocks()` - decentralizuotas (paralelinis / konkurencinis) kasimas su kandidatais
- - `printDetailedStatistics()` - supaprastinta kasimo statistika (Mining Times)
- - `exportToJson(filename)` - grandinės eksportas į JSON (logs/)
 
 **Transaction** (`transaction.h/cpp`)
-- Saugo transakcijos duomenis: from, to, amount, timestamp
-- Automatiškai generuoja ID konstruktoriuje: `id = hash(from+to+amount+timestamp)`
-- toString() serializacijai
+- **v0.2**: Saugo inputs (TxInput: prevTxId, outputIndex) ir outputs (TxOutput: receiver, amount)
+- Automatiškai generuoja ID konstruktoriuje: `id = hash(inputs+outputs)`
+- Compatibility getters: getFrom(), getTo(), getAmount() senam kodui
 
 **TxPool** (`txpool.h/cpp`)
 - Laiko nepatvirtintas transakcijas (vector<Transaction>)
@@ -49,13 +58,11 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 - `eraseByIds()` - pašalina panaudotas transakcijas po kasimo
 
 **Ledger** (`ledger.h/cpp`)
-- Account model balansai (unordered_map<publicKey, balance>)
-- `canApply()` - tikrina ar vartotojas turi pakankamai lėšų
-- `apply()` - pritaiko transakciją (atima iš sender, prideda receiver)
+- **v0.2**: UTXO model (unordered_map<"txid:index", TxOutput>)
+- `getBalance(address)` - skaičiuoja iš visų UTXO, priklausančių adresui
+- `canApply()` - tikrina ar visi input UTXO egzistuoja ir suma pakanka
+- `apply()` - išleidžia input UTXO, sukuria output UTXO
 - Apsauga nuo underflow (uint64_t)
- - Mokesčiai: `canApplyWithFee(tx, fee)`, `applyWithFee(tx, feeCollector, fee)`
- - (Pasirenkamai) UTXO režimas: `enableUTXO()`, `initializeUTXOFromBalances()`,
-   `canApplyWithFeeUTXO(tx, fee)`, `applyWithFeeUTXO(tx, feeCollector, fee)`
 
 **User** (`user.h/cpp`)
 - Vartotojo duomenys: name, publicKey, balance
@@ -82,8 +89,7 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 - tikslas: rasti nonce taip, kad bloko hash prasidėtų su N nulių. Naudojama difficulty=3, taigi tikslas yra "000...".
 - hash funkcija: custom `generate_hash()` (256-bit HEX). išvedime rodau pilnus hash'us.
 - hash'inami laukai:
-	- v1 blokas: index, timestamp, data, prevHash, nonce
-  - v2 blokas: index, timestamp, version, difficulty, txRoot (tikras Merkle Root iš Tx ID), prevHash, nonce
+  - blokas: index, timestamp, version, difficulty, txRoot (tikras Merkle Root iš Tx ID), prevHash, nonce
 - kasimas: didinu nonce nuo 0; po kiekvieno bandymo skaičiuoju `hash(toString())`, kai hash prasideda reikiamu kiekiu nulių, blokas laikomas iškastu.
 - progresas: kas 100000 bandymų išvedamas bandymų skaičius; po kasimo parodytas Nonce + Hash + Time + Attempts.
 - patikrinimas: `isChainValid()` tikrina prev hashus, ir patikrina, kad hash atitiktų difficulty ("000...").
@@ -91,7 +97,7 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 - `txRoot` yra tikras Merkle Root.
 
 ### Decentralizuotas kasimas
-- Tikslas: imituoti kelių kalnakasių konkurenciją su laiko apribojimu.
+- Tikslas: imituoti 5 ka didatinių blokų kasimą su laiko apribojimu.
 - Procesas:
   1) Iš `TxPool` suformuojami 5 kandidatiniai blokai (po ~100 patikrintų transakcijų kiekviename).
   2) Visi kandidatai kasami konkurencingai vienu metu (paraleliskai).
@@ -159,14 +165,6 @@ while (true) {
 - Paprastesnis implementuoti
 - `canApply()` pre-check + `apply()` su underflow apsauga
 
-### UTXO modelis 
-- Įdiegta alternatyvi UTXO realizacija Ledger'yje (šalia Account modelio).
-- Inicializacija: po vartotojų sukūrimo sugeneruojamas po vieną GENESIS UTXO kiekvienam vartotojui pagal pradinį balansą.
-- Atranka: deterministinė „mažiausias-pirmas“ (smallest-first) UTXO atranka padengti sumai `amount + fee`.
-- Pritaikymas: sunaudojami įėjimai, sukuriami išėjimai: gavėjui (amount), `MINER_FEE` (fee) ir grąža siuntėjui (change).
-- Balansų santrauka: `balances_` sinchronizuojama su UTXO rezultatu, bendra monetų suma nekinta.
-- Įjungimas: programoje aktyvuota pagal nutylėjimą (`ledger.enableUTXO(true); ledger.initializeUTXOFromBalances();`).
-
 ### Logging į atskirą logs/ aplanką
 - Kiekvienas blokas išsaugomas į `logs/blockchain_log.txt` su pilnais headeriais
 - Visos transakcijos išsaugomos į `logs/merkle_log.txt`
@@ -215,7 +213,7 @@ Projektas naudoja modernius C++17 standarto principus:
 **Enkapsuliacija**:
 - Visi duomenų laukai `private`
 - Prieiga tik per getterius/setterius
- - Vidiniai helper metodai (`mineBlockWithTimeLimit`, `mineBlockWithLimits`, `mineBlockWithTimeLimitStop`, `getLastBlockHash`) - `private`
+- Vidiniai helper metodai (`mineBlockWithTimeLimit`, `getLastBlockHash`) - `private`
 
 ### Transakcijų mokestis (fees)
 - Fiksuotas mokestis: `TX_FEE = 1` moneta už kiekvieną transakciją.
@@ -224,9 +222,12 @@ Projektas naudoja modernius C++17 standarto principus:
 - Rezultatuose rodoma eilutė: `Miner fees collected (MINER_FEE): X coins`.
 - Monetų suma sistemoje nesikeičia (mokestis tik perskirstomas).
 
-### JSON eksportas
-- Visa grandinė eksportuojama į `logs/blockchain_export.json` su blokų ir transakcijų laukais.
-- Tai leidžia lengvai analizuoti, vizualizuoti ir patikrinti blockchain duomenis.
+### JSON eksportas (išjungtas pagal nutylėjimą)
+- Per-bloko JSON failai į `logs/` dabar nerašomi pagal nutylėjimą.
+- Norėdami įjungti eksportą vienai sesijai, paleiskite su aplinkos kintamuoju `EXPORT_LOGS=1`.
+- `logs/` aplankas yra ignoruojamas `.gitignore`, kad logai nepatektų į repozitoriją.
+
+Papildomai, diagnostinės konsolės sekcijos (pvz., „Transaction ID Validation (Sample)“, detali kasimo statistika) yra slėptos pagal nutylėjimą. Norėdami jas įjungti, naudokite `SHOW_TESTS=1`.
 
 ## Interaktyvus užklausų menu
 
@@ -435,15 +436,16 @@ Transaction
 - Bendras blockchain veikimo principo supratimas
 - Patarimai dėl projektavimo
 - OOP gerųjų praktikų patarimai
-- Pagalba su paralelinio kasimo įgyvendinimu
-- Pagalba su UTXO realizavimu
 - Išvedimo į konsolę formavimas
 - Pagalba su Merkle tree įgyvendinimu
 - JSON eksportas
 - Transakcijų mokesčio integracija
+- Transakcijos paieška pagal prefix'ą
+- Pagalba su paralelinio kasimo įgyvendinimu
+- Pagalba su UTXO realizavimu
 - Pagalba su kodo klaidom
 - Kodo peržiūra ir patarimai
-- `README.md` generavimas
+- `README.md` formavimas
 
 ---
 

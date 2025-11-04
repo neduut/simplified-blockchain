@@ -29,7 +29,7 @@ Block::Block(int index, const std::vector<Transaction>& transactions,
     , difficulty_(difficulty)
     , transactions_(transactions) {
     
-    // v0.2 generuoja tikra Merkle Root is transakciju id
+    // generuoja tikra Merkle Root is transakciju id
     std::vector<std::string> leaves;
     leaves.reserve(transactions_.size());
     for (const auto& tx : transactions_) {
@@ -38,7 +38,7 @@ Block::Block(int index, const std::vector<Transaction>& transactions,
     txRoot_ = MerkleTree::from_leaves(leaves).root();
 }
 
-// v0.2 tikrinimas
+// validacija
 std::string Block::recomputeTxRoot() const {
     if (version_ != 2) return std::string();
     std::vector<std::string> leaves;
@@ -48,8 +48,26 @@ std::string Block::recomputeTxRoot() const {
 }
 
 bool Block::verifyTxRoot() const {
-    if (version_ != 2) return true; // v0.1 neturi txRoot
+    if (version_ != 2) return true;
     return txRoot_ == recomputeTxRoot();
+}
+
+void Block::printMerkleTreeStructure() const {
+    if (version_ != 2 || transactions_.empty()) {
+        std::cout << "No Merkle tree (version 1 or no transactions)\n";
+        return;
+    }
+    std::vector<std::string> leaves;
+    leaves.reserve(transactions_.size());
+    for (const auto& tx : transactions_) {
+        leaves.push_back(tx.getId());
+    }
+    std::cout << "Merkle Tree for Block #" << index_ << " (" << transactions_.size() << " transactions):\n";
+    MerkleTree tree = MerkleTree::from_leaves(leaves);
+    tree.print();
+    std::cout << "Stored txRoot: " << txRoot_ << "\n";
+    std::cout << "Computed root: " << tree.root() << "\n";
+    std::cout << "Match: " << (txRoot_ == tree.root() ? "YES" : "NO") << "\n\n";
 }
 
 std::string Block::toString() const {

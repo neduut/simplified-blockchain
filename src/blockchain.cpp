@@ -1,16 +1,26 @@
 #include "blockchain.h"
 #include "ownHash.h"
 #include "timer.h"
+#include "merkle.h"
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <iomanip>
 #include <thread>
 #include <atomic>
+#include <unordered_set>
+#include <set>
+#ifdef _WIN32
+#include <direct.h>
+#endif
 
 // Transaction fee settings
 static constexpr uint64_t TX_FEE = 1; // flat fee per transaction
 static const std::string FEE_COLLECTOR = "MINER_FEE"; // miner account key
+// Block subsidy (newly minted coins for each mined block)
+static constexpr uint64_t BLOCK_REWARD = 50;
+// Special sender label for coinbase transactions
+static const std::string COINBASE_SENDER = "SYSTEM";
 
 Blockchain::Blockchain(int difficulty)
     : difficulty_(difficulty) 
@@ -33,8 +43,7 @@ void Blockchain::mineBlock(Block& block) {
     std::string hash;
     unsigned long long nonce = 0;
 
-    std::cout << "Mining Block #" << block.getIndex() 
-              << " (target: '" << target << "')...\n";
+    std::cout << "Mining Block #" << block.getIndex() << "...\n";
 
     Timer timer;
 
@@ -50,20 +59,11 @@ void Blockchain::mineBlock(Block& block) {
             // Track mining statistics
             miningHistory_.push_back({elapsed, nonce + 1, block.getIndex()});
 
-            std::cout << "Block #" << block.getIndex() << " mined!\n";
-            std::cout << "   Nonce: " << nonce 
-                      << " | Hash: " << hash
-                      << " | Time: " 
-                      << std::fixed << std::setprecision(3) << elapsed 
-                      << " s | Attempts: " << nonce + 1 << "\n\n";
+            std::cout << "Block #" << block.getIndex() << " mined.\n\n";
             return;
         }
 
         nonce++;
-
-        if (nonce % 100000 == 0) {
-            std::cout << "   Tried " << nonce << " nonces...\n";
-        }
     }
 }
 
@@ -200,7 +200,7 @@ bool Blockchain::formBlockFromPool(TxPool& pool, Ledger& ledger, size_t nTx) {
         }
         
         // tikrina balansa
-        if (ledger.canApplyWithFeeUTXO(tx, TX_FEE)) {
+        if (ledger.canApplyWithFee(tx, TX_FEE)) {
             validTx.push_back(tx);
             toRemoveIds.push_back(tx.getId());
         } else {
@@ -233,9 +233,9 @@ bool Blockchain::formBlockFromPool(TxPool& pool, Ledger& ledger, size_t nTx) {
     // kasam
     mineBlock(newBlock);
     
-    // pritaikom ledger
+    // pritaikom ledger (UTXO: fees are implicit in transaction outputs)
     for (const auto& tx : validTx) {
-        ledger.applyWithFeeUTXO(tx, FEE_COLLECTOR, TX_FEE);
+        ledger.apply(tx);
     }
     
     // istrinam is pool
@@ -292,39 +292,109 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
         std::vector<std::vector<Transaction>> candidateTxSets;
         std::vector<std::vector<std::string>> candidateRemoveIds;
         
+        // Ensure no TX is reused across candidates: track already-picked TX IDs
+        std::unordered_set<std::string> usedTxIds;
+        
+        // Track validation statistics
+        int totalSampled = 0;
+        int invalidIdCount = 0;
+        int insufficientBalanceCount = 0;
+        int duplicateCount = 0;
+        
         for (int i = 0; i < numCandidates; ++i) {
             // pasiima atsitiktines transakcijas
-            std::vector<Transaction> selectedTx = pool.takeRandom(nTx);
+            std::vector<Transaction> selectedTx = pool.takeRandom(nTx * 2); // oversample to account for filtering
             if (selectedTx.empty()) break;
             
             //verifikacija
             std::vector<Transaction> validTx;
-            std::vector<std::string> toRemoveIds;
+            std::vector<std::string> toRemoveValidIds; // remove only confirmed tx
+            // For UTXO: track which inputs are already used in this candidate
+            std::set<std::string> usedInputsInCandidate;
             
             for (const auto& tx : selectedTx) {
-                if (!tx.verifyId()) {
-                    toRemoveIds.push_back(tx.getId());
+                totalSampled++;
+                // skip if already used by another candidate
+                if (usedTxIds.count(tx.getId()) > 0) {
+                    duplicateCount++;
                     continue;
                 }
-                if (ledger.canApplyWithFeeUTXO(tx, TX_FEE)) {
+                if (!tx.verifyId()) {
+                    invalidIdCount++;
+                    continue; // discard invalid IDs but don't erase from pool here
+                }
+                
+                // For pure UTXO: check if transaction's inputs are valid and not already used
+                bool inputsAlreadyUsed = false;
+                for (const auto& input : tx.getInputs()) {
+                    std::string inputKey = input.prevTxId + ":" + std::to_string(input.outputIndex);
+                    if (usedInputsInCandidate.count(inputKey) > 0) {
+                        inputsAlreadyUsed = true;
+                        break;
+                    }
+                }
+                
+                if (inputsAlreadyUsed) {
+                    duplicateCount++;
+                    continue;
+                }
+                
+                // Validate using ledger's UTXO validation
+                if (ledger.canApplyWithFee(tx, TX_FEE)) {
                     validTx.push_back(tx);
-                    toRemoveIds.push_back(tx.getId());
+                    toRemoveValidIds.push_back(tx.getId());
+                    // Mark inputs as used
+                    for (const auto& input : tx.getInputs()) {
+                        std::string inputKey = input.prevTxId + ":" + std::to_string(input.outputIndex);
+                        usedInputsInCandidate.insert(inputKey);
+                    }
+                    usedTxIds.insert(tx.getId());
+                    if (validTx.size() >= nTx - 1) break; // limit to nTx-1 to account for coinbase
+                } else {
+                    insufficientBalanceCount++;
                 }
             }
             
             if (validTx.empty()) continue;
+
+            // Compose block transactions: prepend coinbase(txReward + fees)
+            uint64_t totalFees = static_cast<uint64_t>(validTx.size()) * TX_FEE;
+            uint64_t coinbaseAmt = BLOCK_REWARD + totalFees;
+            
+            // Get block index for coinbase uniqueness and block creation
+            int newIndex = static_cast<int>(chain_.size());
+            
+            // Create coinbase as UTXO transaction
+            // Coinbase has special "input" with block index to ensure uniqueness
+            std::vector<TxInput> coinbaseInputs;
+            coinbaseInputs.push_back(TxInput("coinbase", newIndex)); // Unique per block
+            std::vector<TxOutput> coinbaseOutputs;
+            coinbaseOutputs.push_back(TxOutput(FEE_COLLECTOR, coinbaseAmt));
+            Transaction coinbase(coinbaseInputs, coinbaseOutputs);
+            
+            std::vector<Transaction> blockTxs;
+            blockTxs.reserve(validTx.size() + 1);
+            blockTxs.push_back(coinbase);
+            for (const auto& t : validTx) blockTxs.push_back(t);
             
             // sukuria kandidatini bloka
-            int newIndex = static_cast<int>(chain_.size());
             std::string prevHash = getLastBlockHash();
-            Block candidate(newIndex, validTx, prevHash, difficulty_);
+            Block candidate(newIndex, blockTxs, prevHash, difficulty_);
             
             candidates.push_back(candidate);
-            candidateTxSets.push_back(validTx);
-            candidateRemoveIds.push_back(toRemoveIds);
+            candidateTxSets.push_back(blockTxs);
+            candidateRemoveIds.push_back(toRemoveValidIds);
             
-            std::cout << "Candidate #" << (i + 1) << ": " << validTx.size() 
-                     << " transactions\n";
+            // compact console: don't print candidate details
+        }
+        
+        // Print validation statistics
+        if (invalidIdCount > 0 || insufficientBalanceCount > 0 || duplicateCount > 0) {
+            std::cout << "Validation: sampled " << totalSampled << " tx; ";
+            if (invalidIdCount > 0) std::cout << invalidIdCount << " invalid ID, ";
+            if (insufficientBalanceCount > 0) std::cout << insufficientBalanceCount << " insufficient balance, ";
+            if (duplicateCount > 0) std::cout << duplicateCount << " duplicate";
+            std::cout << " (rejected)\n";
         }
         
         if (candidates.empty()) {
@@ -332,7 +402,7 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
             return false;
         }
         
-    std::cout << "\nMining " << candidates.size() << " candidates competitively...\n";
+    // compact console: skip verbose mining info
         
         // kasa konkuruojancius blokus 
         Timer roundTimer;
@@ -357,15 +427,13 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
         
         // rezultatai
         if (winner >= 0) {
-            std::cout << "\n*** Candidate #" << (winner + 1) << " WON! ***\n";
-            std::cout << "   Nonce: " << bestNonce 
-                     << " | Hash: " << candidates[winner].getHash()
-                     << " | Time: " << std::fixed << std::setprecision(3) 
-                     << bestTime << " s\n";
+            // compact console: don't print winner nonce/hash/time
             
-            // laimetojas
-            for (const auto& tx : candidateTxSets[winner]) {
-                ledger.applyWithFeeUTXO(tx, FEE_COLLECTOR, TX_FEE);
+            // laimetojas - apply all transactions (including coinbase)
+            // In UTXO model, coinbase and fees are handled through outputs
+            const auto& wonTxs = candidateTxSets[winner];
+            for (const Transaction& tx : wonTxs) {
+                ledger.apply(tx);
             }
             
             pool.eraseByIds(candidateRemoveIds[winner]);
@@ -373,8 +441,8 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
             saveToFile(candidates[winner]);
             
             std::cout << "Block #" << candidates[winner].getIndex() 
-                     << " added to chain with " << candidateTxSets[winner].size() 
-                     << " transactions\n\n";
+                     << " mined (" << candidateTxSets[winner].size() 
+                     << " tx).\n\n";
             
             return true;
         } else {
@@ -412,51 +480,135 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
     }
     
     std::cout << "\n=== Parallel Decentralized Mining: " << numCandidates << " candidates ===\n";
-    std::cout << "Time limit per round: " << timeLimitSec << " seconds\n\n";
+    if (timeLimitSec > 0.0 && attemptsLimit > 0) {
+        std::cout << "Limits: " << timeLimitSec << " seconds OR " << attemptsLimit << " attempts\n\n";
+    } else if (timeLimitSec > 0.0) {
+        std::cout << "Time limit per round: " << timeLimitSec << " seconds\n\n";
+    } else if (attemptsLimit > 0) {
+        std::cout << "Attempts limit per round: " << attemptsLimit << " attempts\n\n";
+    }
     
     int round = 1;
     double currentTimeLimit = timeLimitSec;
+    unsigned long long currentAttemptsLimit = attemptsLimit;
     
     while (true) {
         std::cout << "--- Mining Round #" << round << " ---\n";
-        std::cout << "Time limit: " << std::fixed << std::setprecision(1) 
-                  << currentTimeLimit << "s\n\n";
+        if (currentTimeLimit > 0.0 && currentAttemptsLimit > 0) {
+            std::cout << "Limits: " << std::fixed << std::setprecision(1)
+                      << currentTimeLimit << "s OR " << currentAttemptsLimit << " attempts\n\n";
+        } else if (currentTimeLimit > 0.0) {
+            std::cout << "Time limit: " << std::fixed << std::setprecision(1)
+                      << currentTimeLimit << "s\n\n";
+        } else if (currentAttemptsLimit > 0) {
+            std::cout << "Attempts limit: " << currentAttemptsLimit << "\n\n";
+        }
         
         // sukuria kandidatinius blokus
         std::vector<Block> candidates;
         std::vector<std::vector<Transaction>> candidateTxSets;
         std::vector<std::vector<std::string>> candidateRemoveIds;
         
+        // Ensure no TX is reused across candidates: track already-picked TX IDs
+        std::unordered_set<std::string> usedTxIds;
+        
+        // Track validation statistics
+        int totalSampled = 0;
+        int invalidIdCount = 0;
+        int insufficientBalanceCount = 0;
+        int duplicateCount = 0;
+        
         for (int i = 0; i < numCandidates; ++i) {
-            std::vector<Transaction> selectedTx = pool.takeRandom(nTx);
+            std::vector<Transaction> selectedTx = pool.takeRandom(nTx * 2); // oversample to account for filtering
             if (selectedTx.empty()) break;
             
             std::vector<Transaction> validTx;
-            std::vector<std::string> toRemoveIds;
+            std::vector<std::string> toRemoveValidIds; // remove only confirmed tx
+            // For UTXO: track which inputs are already used in this candidate
+            std::set<std::string> usedInputsInCandidate;
             
             for (const auto& tx : selectedTx) {
-                if (!tx.verifyId()) {
-                    toRemoveIds.push_back(tx.getId());
+                totalSampled++;
+                // skip if already used by another candidate
+                if (usedTxIds.count(tx.getId()) > 0) {
+                    duplicateCount++;
                     continue;
                 }
-                if (ledger.canApplyWithFeeUTXO(tx, TX_FEE)) {
+                if (!tx.verifyId()) {
+                    invalidIdCount++;
+                    continue;
+                }
+                
+                // For pure UTXO: check if transaction's inputs are valid and not already used
+                bool inputsAlreadyUsed = false;
+                for (const auto& input : tx.getInputs()) {
+                    std::string inputKey = input.prevTxId + ":" + std::to_string(input.outputIndex);
+                    if (usedInputsInCandidate.count(inputKey) > 0) {
+                        inputsAlreadyUsed = true;
+                        break;
+                    }
+                }
+                
+                if (inputsAlreadyUsed) {
+                    duplicateCount++;
+                    continue;
+                }
+                
+                // Validate using ledger's UTXO validation
+                if (ledger.canApplyWithFee(tx, TX_FEE)) {
                     validTx.push_back(tx);
-                    toRemoveIds.push_back(tx.getId());
+                    toRemoveValidIds.push_back(tx.getId());
+                    // Mark inputs as used
+                    for (const auto& input : tx.getInputs()) {
+                        std::string inputKey = input.prevTxId + ":" + std::to_string(input.outputIndex);
+                        usedInputsInCandidate.insert(inputKey);
+                    }
+                    usedTxIds.insert(tx.getId());
+                    if (validTx.size() >= nTx - 1) break; // limit to nTx-1 to account for coinbase
+                } else {
+                    insufficientBalanceCount++;
                 }
             }
             
             if (validTx.empty()) continue;
+
+            // Prepend coinbase transaction (reward + fees)
+            uint64_t totalFees = static_cast<uint64_t>(validTx.size()) * TX_FEE;
+            uint64_t coinbaseAmt = BLOCK_REWARD + totalFees;
             
+            // Get block index for coinbase uniqueness and block creation
             int newIndex = static_cast<int>(chain_.size());
+            
+            // Create coinbase as UTXO transaction
+            // Coinbase has special "input" with block index to ensure uniqueness
+            std::vector<TxInput> coinbaseInputs;
+            coinbaseInputs.push_back(TxInput("coinbase", newIndex)); // Unique per block
+            std::vector<TxOutput> coinbaseOutputs;
+            coinbaseOutputs.push_back(TxOutput(FEE_COLLECTOR, coinbaseAmt));
+            Transaction coinbase(coinbaseInputs, coinbaseOutputs);
+            
+            std::vector<Transaction> blockTxs;
+            blockTxs.reserve(validTx.size() + 1);
+            blockTxs.push_back(coinbase);
+            for (const auto& t : validTx) blockTxs.push_back(t);
+            
             std::string prevHash = getLastBlockHash();
-            Block candidate(newIndex, validTx, prevHash, difficulty_);
+            Block candidate(newIndex, blockTxs, prevHash, difficulty_);
             
             candidates.push_back(candidate);
-            candidateTxSets.push_back(validTx);
-            candidateRemoveIds.push_back(toRemoveIds);
+            candidateTxSets.push_back(blockTxs);
+            candidateRemoveIds.push_back(toRemoveValidIds);
             
-            std::cout << "Candidate #" << (i + 1) << ": " << validTx.size() 
-                     << " transactions\n";
+            // compact console: don't print candidate details
+        }
+        
+        // Print validation statistics
+        if (invalidIdCount > 0 || insufficientBalanceCount > 0 || duplicateCount > 0) {
+            std::cout << "Validation: sampled " << totalSampled << " tx; ";
+            if (invalidIdCount > 0) std::cout << invalidIdCount << " invalid ID, ";
+            if (insufficientBalanceCount > 0) std::cout << insufficientBalanceCount << " insufficient balance, ";
+            if (duplicateCount > 0) std::cout << duplicateCount << " duplicate";
+            std::cout << " (rejected)\n";
         }
         
         if (candidates.empty()) {
@@ -464,7 +616,7 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
             return false;
         }
         
-        std::cout << "\nMining " << candidates.size() << " candidates in parallel...\n";
+    // compact console: skip verbose mining info
         
         // paralelinis kasimas su threads
         Timer roundTimer;
@@ -479,7 +631,7 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
             threads.emplace_back([&, i]() {
                 Timer t;
                 unsigned long long n = 0;
-                bool ok = mineBlockWithTimeLimitStop(candidates[i], currentTimeLimit, attemptsLimit, n, stopFlag);
+                bool ok = mineBlockWithTimeLimitStop(candidates[i], currentTimeLimit, currentAttemptsLimit, n, stopFlag);
                 times[i] = t.elapsed();
                 if (ok) {
                     nonces[i] = n;
@@ -501,17 +653,19 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
         }
         
         if (winIdx >= 0) {
-            std::cout << "\n*** Candidate #" << (winIdx + 1) << " WON! ***\n";
-            std::cout << "   Nonce: " << bestNonce 
-                     << " | Hash: " << candidates[winIdx].getHash()
-                     << " | Time: " << std::fixed << std::setprecision(3) 
-                     << bestTime << " s\n";
+            // compact console: don't print winner nonce/hash/time
             
-            for (const auto& tx : candidateTxSets[winIdx]) {
-                ledger.applyWithFeeUTXO(tx, FEE_COLLECTOR, TX_FEE);
+            // Apply all transactions (including coinbase) - UTXO handles fees via outputs
+            const auto& wonTxs = candidateTxSets[winIdx];
+            for (const Transaction& tx : wonTxs) {
+                ledger.apply(tx);
             }
             
             pool.eraseByIds(candidateRemoveIds[winIdx]);
+            
+            // Clean up invalid transactions (whose UTXOs were spent in this block)
+            pool.removeInvalid(ledger, TX_FEE);
+            
             chain_.push_back(candidates[winIdx]);
             saveToFile(candidates[winIdx]);
             
@@ -519,17 +673,27 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
             miningHistory_.push_back({bestTime, bestNonce, candidates[winIdx].getIndex()});
             
             std::cout << "Block #" << candidates[winIdx].getIndex() 
-                     << " added to chain with " << candidateTxSets[winIdx].size() 
-                     << " transactions\n\n";
+                     << " mined (" << candidateTxSets[winIdx].size() 
+                     << " tx, parallel).\n\n";
             
             return true;
         } else {
-            std::cout << "\nNo block mined in " << currentTimeLimit << "s. ";
-            currentTimeLimit *= 1.5;
-            std::cout << "Increasing time limit to " << std::fixed 
-                     << std::setprecision(1) << currentTimeLimit << "s...\n\n";
+            std::cout << "\nNo block mined with current limits. ";
+            bool printed = false;
+            if (currentTimeLimit > 0.0) {
+                currentTimeLimit *= 1.5;
+                std::cout << "Increasing time limit to " << std::fixed
+                          << std::setprecision(1) << currentTimeLimit << "s";
+                printed = true;
+            }
+            if (currentAttemptsLimit > 0) {
+                currentAttemptsLimit = static_cast<unsigned long long>(currentAttemptsLimit * 1.5);
+                if (printed) std::cout << " and ";
+                std::cout << "attempts to " << currentAttemptsLimit;
+            }
+            std::cout << "...\n\n";
             round++;
-            
+
             if (round > 10) {
                 std::cout << "Too many rounds - aborting.\n";
                 return false;
@@ -605,25 +769,7 @@ void Blockchain::printStatistics() const {
 
 // issaugojimas i faila
 void Blockchain::saveToFile(const Block& block) const {
-    std::ofstream file("logs/blockchain_log.txt", std::ios::app);
-    if (!file.is_open()) return;
-
-    file << "Block #" << block.getIndex() << "\n";
-    file << "Timestamp : " << block.getTimestamp() << "\n";
-    file << "Version   : " << block.getVersion() << "\n";
-    // jei v1, rasom data; jei v2, rasom tx root ir difficulty
-    if (block.getVersion() == 1) {
-        file << "Data      : " << block.getData() << "\n";
-        file << "Difficulty: " << block.getDifficulty() << "\n";
-    } else {
-        file << "Tx Root   : " << block.getTxRoot() << "\n";
-        file << "Difficulty: " << block.getDifficulty() << "\n";
-    }
-    file << "Nonce     : " << block.getNonce() << "\n";
-    file << "Prev Hash : " << block.getPreviousHash() << "\n";
-    file << "Hash      : " << block.getHash() << "\n";
-    file << std::string(40, '-') << "\n";
-    file.close();
+    (void)block;
 }
 
 // JSON eksportas
@@ -679,6 +825,88 @@ void Blockchain::exportToJson(const std::string& filename) const {
     file.close();
     
     std::cout << "Blockchain exported to " << filename << "\n";
+}
+
+// kiekviena bloka i atskira json faila 
+void Blockchain::exportBlocksToJsonDir(const std::string& dirPath) const {
+    // uztikrina kad butu katalogas 
+#ifdef _WIN32
+    _mkdir(dirPath.c_str());
+#endif
+
+    // kiekviena bloka i atskira faila
+    for (const auto& block : chain_) {
+        std::string filePath = dirPath + "/block_" + std::to_string(block.getIndex()) + ".json";
+        std::ofstream file(filePath);
+        if (!file.is_open()) {
+            std::cerr << "Failed to open file: " << filePath << "\n";
+            continue;
+        }
+
+        file << "{\n";
+        file << "  \"index\": " << block.getIndex() << ",\n";
+        file << "  \"timestamp\": " << block.getTimestamp() << ",\n";
+        file << "  \"version\": " << block.getVersion() << ",\n";
+        file << "  \"hash\": \"" << block.getHash() << "\",\n";
+        file << "  \"previousHash\": \"" << block.getPreviousHash() << "\",\n";
+        file << "  \"nonce\": " << block.getNonce() << ",\n";
+        file << "  \"difficulty\": " << block.getDifficulty() << ",\n";
+
+        if (block.getVersion() == 1) {
+            file << "  \"data\": \"" << block.getData() << "\"\n";
+        } else {
+            file << "  \"txRoot\": \"" << block.getTxRoot() << "\",\n";
+            file << "  \"transactionCount\": " << block.getTransactions().size() << ",\n";
+            
+            //  merkle tree i json faila bloku
+            const auto& txs = block.getTransactions();
+            if (!txs.empty()) {
+                std::vector<std::string> leaves;
+                leaves.reserve(txs.size());
+                for (const auto& tx : txs) {
+                    leaves.push_back(tx.getId());
+                }
+                MerkleTree tree = MerkleTree::from_leaves(leaves);
+                const auto& levels = tree.levels();
+                
+                file << "  \"merkleTree\": {\n";
+                file << "    \"root\": \"" << tree.root() << "\",\n";
+                file << "    \"levels\": [\n";
+                for (size_t lvl = 0; lvl < levels.size(); ++lvl) {
+                    file << "      [\n";
+                    for (size_t h = 0; h < levels[lvl].size(); ++h) {
+                        file << "        \"" << levels[lvl][h] << "\"";
+                        if (h + 1 < levels[lvl].size()) file << ",";
+                        file << "\n";
+                    }
+                    file << "      ]";
+                    if (lvl + 1 < levels.size()) file << ",";
+                    file << "\n";
+                }
+                file << "    ],\n";
+                file << "    \"levelCount\": " << levels.size() << ",\n";
+                file << "    \"description\": \"Level 0 = transaction IDs (leaves), Level " << (levels.size() - 1) << " = root\"\n";
+                file << "  },\n";
+            }
+            
+            file << "  \"transactions\": [\n";
+            for (size_t j = 0; j < txs.size(); ++j) {
+                file << "    {\n";
+                file << "      \"id\": \"" << txs[j].getId() << "\",\n";
+                file << "      \"from\": \"" << txs[j].getFrom() << "\",\n";
+                file << "      \"to\": \"" << txs[j].getTo() << "\",\n";
+                file << "      \"amount\": " << txs[j].getAmount() << ",\n";
+                file << "      \"timestamp\": " << txs[j].getTimestamp() << "\n";
+                file << "    }" << (j + 1 < txs.size() ? "," : "") << "\n";
+            }
+            file << "  ]\n";
+        }
+
+        file << "}\n";
+        file.close();
+    }
+
+    std::cout << "Exported " << chain_.size() << " blocks to directory: " << dirPath << "\n";
 }
 
 // detailed mining statistics 

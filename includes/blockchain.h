@@ -41,8 +41,10 @@ public:
     void printStatistics() const;
     void printDetailedStatistics() const; // Detalesnė statistika su histograma
     
-    // JSON eksportas
+    // json eksportas
     void exportToJson(const std::string& filename) const;
+    // json eksportas: vienas failas kiekvienam blokui log kataloge
+    void exportBlocksToJsonDir(const std::string& dirPath) const;
     
     // getters 
     size_t getChainSize() const noexcept { return chain_.size(); }

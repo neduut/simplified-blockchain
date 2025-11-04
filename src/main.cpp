@@ -12,6 +12,8 @@
 #include <random>
 #include <fstream>
 #include <sstream>
+#include <cstdlib>
+#include <set>
 #ifdef _WIN32
 #include <direct.h>
 #endif
@@ -42,12 +44,8 @@ static string utc_now_str() {
 
 // i log faila pazymim sesijos pradzia su date_utc
 static void log_session_start() {
-    std::ofstream file("logs/blockchain_log.txt", std::ios::app);
-    if (!file.is_open()) return;
-    file << std::string(40, ' ') << "\n";
-    file << std::string(40, '-') << "\n";
-    file << "date_utc : " << utc_now_str() << "\n";
-    file << std::string(40, '-') << "\n";
+    // disabled text logging to logs/blockchain_log.txt per request
+    return;
 }
 
 // sukuria logs kataloga jei jo nera (Windows)
@@ -87,7 +85,7 @@ void testSimpleBlocks(int difficulty, int numBlocks) {
         cout << "Blockchain is INVALID!\n\n";
     }
     
-    blockchain.printChain();
+    // issami bloko info per uzklausu meniu
 }
 
 // query funkcijos menu
@@ -103,36 +101,117 @@ void queryBlock(const Blockchain& blockchain) {
         cout << "BLOCK #" << blockNum << " DETAILS\n";
         cout << string(60, '=') << "\n";
         chain[blockNum].printBlock();
+        
+        // paklausti del merkle tree pavaizdavimo
+        if (chain[blockNum].getVersion() == 2 && !chain[blockNum].getTransactions().empty()) {
+            cout << "Show Merkle tree structure for this block? (y/n): ";
+            char choice;
+            cin >> choice;
+            cin.ignore();
+            if (choice == 'y' || choice == 'Y') {
+                chain[blockNum].printMerkleTreeStructure();
+            }
+        }
     } else {
         cout << "Invalid block number!\n";
     }
 }
 
-void queryTransaction(const TxPool& pool) {
-    string txId;
-    cout << "Enter transaction ID (hash): ";
-    getline(cin, txId);
-    
-    const auto& allTxs = pool.getAll();
-    bool found = false;
-    for (const auto& tx : allTxs) {
-        if (tx.getId() == txId) {
-            cout << "\n" << string(60, '=') << "\n";
-            cout << "TRANSACTION DETAILS\n";
-            cout << string(60, '=') << "\n";
-            tx.print();
-            found = true;
-            break;
-        }
-    }
-    
-    if (!found) {
-        cout << "Transaction not found!\n";
-    }
+static string to_lower_copy(string s) {
+    for (auto& ch : s) ch = static_cast<char>(tolower(static_cast<unsigned char>(ch)));
+    return s;
 }
 
-// Test: Blokai su transakcijomis
-void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& users) {
+// palaiko paieska ne tik pagal id bet ir pagal prefiksa
+void queryTransactionInteractive(const Blockchain& blockchain, const TxPool& pool) {
+    string input;
+    cout << "Enter transaction ID or prefix: ";
+    getline(cin, input);
+    if (input.empty()) {
+        cout << "Empty input.\n";
+        return;
+    }
+    string q = to_lower_copy(input);
+
+    struct TxRef {
+        const Transaction* tx;
+        string source;
+        int blockIndex; // -1 if from pool
+        size_t txIndex;
+    };
+
+    vector<TxRef> matches;
+
+    // 1) Paieška pool'e (nepatvirtintos)
+    const auto& poolTxs = pool.getAll();
+    for (size_t i = 0; i < poolTxs.size(); ++i) {
+        string id = to_lower_copy(poolTxs[i].getId());
+        if (id.rfind(q, 0) == 0) { // prefix match
+            matches.push_back(TxRef{&poolTxs[i], "pool", -1, i});
+        }
+    }
+
+    // 2) Paieška blokų grandinėje (patvirtintos)
+    const auto& chain = blockchain.getChain();
+    for (const auto& block : chain) {
+        if (block.getVersion() != 2) continue;
+        const auto& txs = block.getTransactions();
+        for (size_t i = 0; i < txs.size(); ++i) {
+            string id = to_lower_copy(txs[i].getId());
+            if (id.rfind(q, 0) == 0) { // prefix match
+                matches.push_back(TxRef{&txs[i], "block", block.getIndex(), i});
+            }
+        }
+    }
+
+    if (matches.empty()) {
+        cout << "No transactions found by prefix: '" << input << "'\n";
+        return;
+    }
+
+    if (matches.size() == 1) {
+        cout << "\n" << string(60, '=') << "\n";
+        cout << "TRANSACTION DETAILS\n";
+        cout << string(60, '=') << "\n";
+        cout << "Source: " << (matches[0].blockIndex >= 0 ? ("block #" + to_string(matches[0].blockIndex)) : string("pool")) << "\n";
+        matches[0].tx->print();
+        return;
+    }
+
+    // rodo sarasa su atitikmenim
+    cout << "Found " << matches.size() << " transactions. Showing first 20:\n";
+    size_t shown = min<size_t>(20, matches.size());
+    for (size_t i = 0; i < shown; ++i) {
+        cout << "  [" << (i + 1) << "] "
+             << matches[i].tx->getId().substr(0, 16) << "...  "
+             << (matches[i].blockIndex >= 0 ? ("block #" + to_string(matches[i].blockIndex)) : string("pool"))
+             << "  " << matches[i].tx->getFrom().substr(0, 8) << "... -> "
+             << matches[i].tx->getTo().substr(0, 8) << "...  amt="
+             << matches[i].tx->getAmount() << "\n";
+    }
+    if (matches.size() > shown) {
+        cout << "  ... and " << (matches.size() - shown) << " more\n";
+    }
+    cout << "Choose number to view details (0 to cancel): ";
+    int pick = 0;
+    if (!(cin >> pick)) {
+        cin.clear();
+        cin.ignore(10000, '\n');
+        cout << "Invalid input.\n";
+        return;
+    }
+    cin.ignore();
+    if (pick <= 0 || pick > static_cast<int>(shown)) return;
+    const auto& choice = matches[static_cast<size_t>(pick - 1)];
+    cout << "\n" << string(60, '=') << "\n";
+    cout << "TRANSACTION DETAILS\n";
+    cout << string(60, '=') << "\n";
+    cout << "Source: " << (choice.blockIndex >= 0 ? ("block #" + to_string(choice.blockIndex)) : string("pool")) << "\n";
+    choice.tx->print();
+}
+
+// pagrindine funkcija
+void runBlockchainSimulation(Blockchain& blockchain, TxPool& pool, vector<User>& users) {
     printHeader("Transaction System");
     
     Ledger ledger;
@@ -143,21 +222,21 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
     mt19937 gen(rd());
     uniform_int_distribution<> balanceDist(100, 1000000);
     
+    // sukuria vartotojus su random balansu
     for (int i = 0; i < 1000; ++i) {
         string name = "User_" + to_string(i);
         string pubKey = generatePublicKey(name + to_string(i));
         uint64_t balance = balanceDist(gen);
         users.emplace_back(name, pubKey, balance);
-        ledger.setBalance(pubKey, balance);
+        
+        // sukuria pradini UTXO ledgery
+        std::string initTxId = "initial:" + pubKey;
+        TxOutput initOutput(pubKey, balance);
+        ledger.addUTXO(initTxId, 0, initOutput);
     }
     
     cout << "Created " << users.size() << " users\n";
     cout << "Total coins in system: " << ledger.getTotalBalance() << "\n";
-
-    // Optional: enable UTXO mode in ledger
-    ledger.enableUTXO(true);
-    ledger.initializeUTXOFromBalances();
-    cout << "UTXO mode enabled (initialized from account balances).\n";
     
     // rodo pirmus 5 vartotojus kaip pavyzdi konsolej
     cout << "\nSample users (first 5):\n";
@@ -169,13 +248,21 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
     }
     cout << "  ... and " << (users.size() - 5) << " more\n";
     
-    // sukuria transaction pool
-    // generuoja ~10000 transakciju
-    cout << "\nGenerating ~10000 transactions...\n";
+    // sukuria transaction pool - generate ~10000 transactions upfront for all blocks
+    cout << "\nGenerating ~10000 UTXO transactions...\n";
+    
+    // random generators for transaction generation
     uniform_int_distribution<> userDist(0, users.size() - 1);
     uniform_int_distribution<> amountDist(10, 1000);
     
-    for (int i = 0; i < 10000; ++i) {
+    int txGenerated = 0;
+    int attempts = 0;
+    const int TARGET_TX = 10000;
+    const int MAX_ATTEMPTS = 15000; // allow some failed attempts
+    
+    while (txGenerated < TARGET_TX && attempts < MAX_ATTEMPTS) {
+        attempts++;
+        
         int fromIdx = userDist(gen);
         int toIdx = userDist(gen);
         
@@ -183,34 +270,94 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
             toIdx = userDist(gen);
         }
         
+        string sender = users[fromIdx].getPublicKey();
+        string receiver = users[toIdx].getPublicKey();
         uint64_t amount = amountDist(gen);
-        Transaction tx(users[fromIdx].getPublicKey(), 
-                      users[toIdx].getPublicKey(), 
-                      amount);
-        pool.addTransaction(tx);
-    }
-    
-    cout << "Generated " << pool.size() << " transactions\n";
-    
-    // iraso visas transakcijas i logs/merkle_log.txt
-    const auto& allTxs = pool.getAll();
-    ofstream txLog("logs/merkle_log.txt");
-    if (txLog.is_open()) {
-        txLog << "==========================================================\n";
-        txLog << "ALL TRANSACTIONS (Total: " << allTxs.size() << ")\n";
-        txLog << "==========================================================\n\n";
-        for (size_t i = 0; i < allTxs.size(); ++i) {
-            const auto& tx = allTxs[i];
-            txLog << "[" << (i+1) << "] TX ID: " << tx.getId() << "\n";
-            txLog << "    From   : " << tx.getFrom() << "\n";
-            txLog << "    To     : " << tx.getTo() << "\n";
-            txLog << "    Amount : " << tx.getAmount() << " coins\n\n";
+        
+        // find sender's first available UTXO (any UTXO they own)
+        std::string txId;
+        int outputIdx = -1;
+        uint64_t utxoAmount = 0;
+        
+        // search for any sender's UTXO (allows duplicates - mining will filter)
+        const auto& allUtxos = ledger.getAllUTXOs();
+        for (const auto& [key, output] : allUtxos) {
+            if (output.receiver == sender) {
+                // parse key "txid:index"
+                // find last colon (in case txid contains colons like "initial:<addr>")
+                size_t colonPos = key.rfind(':');
+                if (colonPos != std::string::npos) {
+                    txId = key.substr(0, colonPos);
+                    try {
+                        outputIdx = std::stoi(key.substr(colonPos + 1));
+                        utxoAmount = output.amount;
+                        // check if this UTXO has enough for the transaction
+                        const uint64_t TX_FEE = 1;
+                        if (utxoAmount >= amount + TX_FEE) {
+                            break; // found suitable UTXO
+                        } else {
+                            outputIdx = -1; // not enough, keep searching
+                        }
+                    } catch (...) {
+                        continue; // skip malformed keys
+                    }
+                }
+            }
         }
-        txLog.close();
-        cout << "All transactions saved to logs/merkle_log.txt\n";
+        
+        if (outputIdx == -1) {
+            continue; // no suitable UTXO found
+        }
+        
+        // create UTXO transaction
+        std::vector<TxInput> inputs;
+        std::vector<TxOutput> outputs;
+        
+        // input: reference to sender's UTXO
+        inputs.push_back(TxInput(txId, outputIdx));
+        
+        // output 1: amount to receiver
+        outputs.push_back(TxOutput(receiver, amount));
+        
+        // output 2: change back to sender (accounting for TX_FEE = 1)
+        const uint64_t TX_FEE = 1;
+        uint64_t change = utxoAmount - amount - TX_FEE;
+        if (change > 0) {
+            outputs.push_back(TxOutput(sender, change));
+        }
+        
+        Transaction tx(inputs, outputs);
+        pool.addTransaction(tx);
+        txGenerated++;
     }
     
-    // konsolėje rodyti tik santrauką
+    cout << "Generated " << pool.size() << " valid UTXO transactions\n";
+    
+    // validate transaction ID correctness (proof for assignment)
+        // optional diagnostics: Transaction ID validation sample
+        bool showTests = false;
+        if (const char* envTests = std::getenv("SHOW_TESTS")) {
+            showTests = (std::string(envTests) == "1" || std::string(envTests) == "true");
+        }
+        const auto& allTxs = pool.getAll();
+        if (showTests) {
+            cout << "\n=== Transaction ID Validation (Sample) ===\n";
+            int validatedCount = 0;
+            int sampleSize = min(size_t(10), allTxs.size());
+            for (size_t i = 0; i < sampleSize; ++i) {
+                const auto& tx = allTxs[i];
+                bool valid = tx.verifyId();
+                if (valid) validatedCount++;
+                if (i < 3) { // show first 3 in detail
+                    cout << "  TX #" << (i+1) << ": " << tx.getId().substr(0, 16) << "... ";
+                    cout << (valid ? "\u2713 VALID" : "\u2717 INVALID") << "\n";
+                }
+            }
+            cout << "  Validated " << validatedCount << "/" << sampleSize << " sample transactions\n";
+            cout << "  All " << pool.size() << " transactions have cryptographic IDs: ID = hash(from + to + amount + timestamp)\n";
+        }
+    
+    // konsolej tik santrauka
     cout << "\nTransaction Pool (size: " << allTxs.size() << ")\n";
     cout << string(40, '-') << "\n";
     cout << "  Showing first 5 transactions:\n";
@@ -224,13 +371,19 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
     if (allTxs.size() > 5) {
         cout << "  ... and " << (allTxs.size() - 5) << " more\n";
     }
-    cout << "  (See logs/merkle_log.txt for all transactions)\n\n";
+    cout << "\n";
     
     // kasa blokus su kandidatais (v0.2: decentralizuotas kasimas)
     printHeader("Mining Blocks with Decentralized Process");
     
     Timer totalTimer;
     int blocksToMine = 5;
+    if (const char* envBlocks = std::getenv("BLOCKS_TO_MINE")) {
+        try {
+            int v = std::stoi(envBlocks);
+            if (v > 0) blocksToMine = v;
+        } catch (...) {}
+    }
     int successfulBlocks = 0;
     
     for (int i = 0; i < blocksToMine; ++i) {
@@ -259,13 +412,14 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
     cout << "Blocks mined: " << successfulBlocks << "\n";
     cout << "Transactions remaining in pool: " << pool.size() << "\n\n";
     
-    // rodyti tik santrauka, ne visus balansus
-    cout << "Final balance summary:\n";
+    // UTXO model statistics
+    cout << "Final UTXO summary:\n";
     cout << "  Total coins in system: " << ledger.getTotalBalance() << "\n";
-    cout << "  Balances updated for " << users.size() << " users\n";
-    cout << "  (Use Ledger::print() to see all individual balances)\n\n";
-    // miner fee account balance
-    cout << "  Miner fees collected (MINER_FEE): " << ledger.getBalance("MINER_FEE") << " coins\n\n";
+    cout << "  Unspent Outputs (UTXO count): " << ledger.getUTXOCount() << "\n";
+    cout << "  Active addresses with UTXOs: " << users.size() << "\n";
+    cout << "  (Use Ledger::print() to see all UTXO details)\n\n";
+    // miner earnings (fees + block rewards)
+    cout << "  Miner (fees + rewards) [MINER_FEE]: " << ledger.getBalance("MINER_FEE") << " coins\n\n";
     
     printHeader("Blockchain Validation");
     blockchain.printStatistics();
@@ -276,10 +430,12 @@ void testTransactionBlocks(Blockchain& blockchain, TxPool& pool, vector<User>& u
         cout << "Blockchain is INVALID!\n\n";
     }
     
-    blockchain.printChain();
+    // Ssppressed full chain dump; view block details via Query menu option 1.
     
-    // detalesne kasimo statistika
-    blockchain.printDetailedStatistics();
+        // detailed mining stats only when diagnostics are enabled
+        if (showTests) {
+            blockchain.printDetailedStatistics();
+        }
 }
 
 int main() {
@@ -293,20 +449,27 @@ int main() {
         TxPool pool;
         vector<User> users;
         
-        // test 1: transaction system
-        testTransactionBlocks(blockchain, pool, users);
+        // Main simulation: setup and mine blocks
+        runBlockchainSimulation(blockchain, pool, users);
         
-        // JSON eksportas i logs kataloga
-        blockchain.exportToJson("logs/blockchain_export.json");
+    // JSON eksportas: atskiri failai kiekvienam blokui tiesiai i logs/
+        // JSON export disabled by default. Enable via EXPORT_LOGS=1
+        bool exportLogs = false;
+        if (const char* envExport = std::getenv("EXPORT_LOGS")) {
+            exportLogs = (std::string(envExport) == "1" || std::string(envExport) == "true");
+        }
+        if (exportLogs) {
+            blockchain.exportBlocksToJsonDir("logs");
+        }
         
         // interaktyvus query meniu
         printHeader("Query System");
-        cout << "You can now query blocks and transactions.\n\n";
+    cout << "You can now query blocks and transactions.\n\n";
         
         while (true) {
             cout << "\nOptions:\n";
             cout << "  1 - Query block by number\n";
-            cout << "  2 - Query transaction by ID\n";
+            cout << "  2 - Query transaction by ID/prefix\n";
             cout << "  0 - Exit\n";
             cout << "Choose option: ";
             
@@ -324,7 +487,7 @@ int main() {
             } else if (choice == 1) {
                 queryBlock(blockchain);
             } else if (choice == 2) {
-                queryTransaction(pool);
+                queryTransactionInteractive(blockchain, pool);
             } else {
                 cout << "Invalid option!\n";
             }

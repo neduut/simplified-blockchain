@@ -1,8 +1,10 @@
 #include "txpool.h"
+#include "ledger.h"
 #include <algorithm>
 #include <random>
 #include <iostream>
 #include <chrono>
+#include <unordered_set>
 
 void TxPool::addTransaction(const Transaction& tx) {
     pool_.push_back(tx);
@@ -40,14 +42,34 @@ std::vector<Transaction> TxPool::takeRandom(size_t n) {
 }
 
 void TxPool::eraseByIds(const std::vector<std::string>& ids) {
-    // istrina transakcijas kuriu id yra sarase
+    if (ids.empty()) return;
+    
+    // use unordered_set for O(1) lookup instead of O(n) with std::find
+    std::unordered_set<std::string> idSet(ids.begin(), ids.end());
+    
+    // remove all transactions whose ID is in the set
     pool_.erase(
         std::remove_if(pool_.begin(), pool_.end(),
-            [&ids](const Transaction& tx) {
-                return std::find(ids.begin(), ids.end(), tx.getId()) != ids.end();
+            [&idSet](const Transaction& tx) {
+                return idSet.count(tx.getId()) > 0;
             }),
         pool_.end()
     );
+}
+
+size_t TxPool::removeInvalid(const Ledger& ledger, uint64_t txFee) {
+    size_t initialSize = pool_.size();
+    
+    // remove all transactions that cannot be applied (invalid UTXO inputs)
+    pool_.erase(
+        std::remove_if(pool_.begin(), pool_.end(),
+            [&ledger, txFee](const Transaction& tx) {
+                return !ledger.canApplyWithFee(tx, txFee);
+            }),
+        pool_.end()
+    );
+    
+    return initialSize - pool_.size(); // number of removed transactions
 }
 
 void TxPool::print() const {

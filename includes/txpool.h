@@ -4,6 +4,8 @@
 #include <string>
 #include <cstddef>
 
+class Ledger; // Forward declaration
+
 class TxPool {
 private:
     std::vector<Transaction> pool_;
@@ -26,6 +28,9 @@ public:
 
     // istrinti transakcijas pagal id
     void eraseByIds(const std::vector<std::string>& ids);
+    
+    // istrinti visas transakcijas, kurios negali buti pritaikytos (invalid UTXO inputs)
+    size_t removeInvalid(const Ledger& ledger, uint64_t txFee);
 
     // grazinti pool dydi 
     size_t size() const noexcept { return pool_.size(); }
@@ -36,9 +41,9 @@ public:
     // isvalyti visa pool 
     void clear() noexcept { pool_.clear(); }
 
-    // Gauti visas transakcijas 
+    // gauti visas transakcijas 
     const std::vector<Transaction>& getAll() const noexcept { return pool_; }
 
-    // Display
+    // display
     void print() const;
 };

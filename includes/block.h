@@ -6,7 +6,7 @@
 
 class Block {
 public:
-    // konstruktoriai (explicit jei vienas parametras po default)
+    // konstruktoriai 
     Block(int index, const std::string& data, const std::string& previousHash);
     
     // konstruktorius su transakcijomis
@@ -45,6 +45,9 @@ public:
     std::string recomputeTxRoot() const;
     // patikrina ar saugomas txRoot_ sutampa su perskaiciuotu
     bool verifyTxRoot() const;
+    
+    // merkle tree i bloku json faila log kataloge
+    void printMerkleTreeStructure() const;
 
 private:
     int index_;
