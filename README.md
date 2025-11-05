@@ -321,6 +321,36 @@ Options:
 - Rezultatuose rodoma eilutė: `Miner fees collected (MINER_FEE): X coins`.
 - Mokesčiai tik perskirstomi (nekuria naujų monetų). Bendrą pasiūlą didina tik `BLOCK_REWARD` per coinbase.
 
+### Automatinis difficulty keitimas
+
+Difficulty automatiškai didėja, jei blokas iškasamas per greitai (<0.2s), ir mažėja, jei per lėtai (>0.4s). Ribos: minimum 1, maksimum 10. Pranešimas rodomas konsolėje kiekvieną kartą, kai difficulty pasikeičia.
+
+```
+mineBlock(block):
+    start timer
+    nonce := 0
+    while true:
+        block.setNonce(nonce)
+        hash := generate_hash(block.toString())
+        if hash.startsWith("0" * difficulty):
+            block.setHash(hash)
+            elapsed := timer.elapsed()
+            // --- Auto difficulty adjustment ---
+            TARGET_BLOCK_TIME := 0.2   // sekundės
+            MIN_DIFFICULTY := 1
+            MAX_DIFFICULTY := 10
+            if elapsed < TARGET_BLOCK_TIME:
+                if difficulty < MAX_DIFFICULTY:
+                    difficulty := difficulty + 1
+                    print("[Auto] Difficulty increased to", difficulty, "(block mined in", elapsed, "s)")
+            else if elapsed > TARGET_BLOCK_TIME * 2:
+                if difficulty > MIN_DIFFICULTY:
+                    difficulty := difficulty - 1
+                    print("[Auto] Difficulty decreased to", difficulty, "(block mined in", elapsed, "s)")
+            return
+        nonce := nonce + 1
+```
+
 
 ## Projekto veikimo demonstracija
 
@@ -446,3 +476,6 @@ Kiekviena versija išsamiai aprašyta jos `README.md` faile.
   - užfiksuojama laimėtojo statistika (genesis + laimėję kandidatai)
   - sutvarkyti pagalbiniai kasimo metodai (`mineBlockWithTimeLimit`, `mineBlockWithLimits`)
   - aiškesnė konsolės išvestis su išsamia kasimo statistika 
+
+  ## v0.2.1
+  - Automatinis difficulty didinimas ir mažinimas

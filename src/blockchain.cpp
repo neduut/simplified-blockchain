@@ -60,6 +60,21 @@ void Blockchain::mineBlock(Block& block) {
             miningHistory_.push_back({elapsed, nonce + 1, block.getIndex()});
 
             std::cout << "Block #" << block.getIndex() << " mined.\n\n";
+            // --- Auto difficulty adjustment ---
+            constexpr double TARGET_BLOCK_TIME = 0.2; // seconds
+            constexpr int MIN_DIFFICULTY = 1;
+            constexpr int MAX_DIFFICULTY = 10;
+            if (elapsed < TARGET_BLOCK_TIME) {
+                if (difficulty_ < MAX_DIFFICULTY) {
+                    difficulty_++;
+                    std::cout << "[Auto] Difficulty increased to " << difficulty_ << " (block mined in " << elapsed << "s)\n";
+                }
+            } else if (elapsed > TARGET_BLOCK_TIME * 2) {
+                if (difficulty_ > MIN_DIFFICULTY) {
+                    difficulty_--;
+                    std::cout << "[Auto] Difficulty decreased to " << difficulty_ << " (block mined in " << elapsed << "s)\n";
+                }
+            }
             return;
         }
 
