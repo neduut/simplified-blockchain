@@ -284,8 +284,14 @@ while (true) {
 
 
 ### Logging / eksportas į logs/
-- JSON eksportas į `logs/block_#.json` įjungiamas `EXPORT_LOGS=1`.
+- JSON eksportas į `logs/block_#.json`
 - Saugojamos kiekvieno bloko transakcijos ir Merkle Tree.
+<div style="display:flex; gap:10px; align-items:flex-start;">
+  <img src="https://github.com/user-attachments/assets/1e16cc57-56b8-4def-a67c-d3a930e74989" style="width:26%;"/>
+  <img src="https://github.com/user-attachments/assets/87049a90-df47-47e5-bba1-1f5dcbb2cfae" style="width:11%;"/>
+  <img src="https://github.com/user-attachments/assets/64dcff85-d3b3-4943-993e-4ce8f744282d" style="width:55%;"/>
+</div>
+
 
 ### Merkle Root diagnostika (papildoma validacija)
 - Užklausiant konkretų bloką galima atspausdinti Merkle medžio struktūrą (pasirenkama interaktyviai).
