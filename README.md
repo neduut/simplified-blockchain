@@ -292,10 +292,11 @@ while (true) {
 - JSON eksportas į `logs/block_#.json` įjungiamas `EXPORT_LOGS=1`.
 - Saugojamos kiekvieno bloko transakcijos ir Merkle Tree.
 <div style="display:flex; gap:10px; align-items:flex-start;">
-  <img src="https://github.com/user-attachments/assets/1e16cc57-56b8-4def-a67c-d3a930e74989" style="width:26%;"/>
-  <img src="https://github.com/user-attachments/assets/87049a90-df47-47e5-bba1-1f5dcbb2cfae" style="width:11%;"/>
-  <img src="https://github.com/user-attachments/assets/64dcff85-d3b3-4943-993e-4ce8f744282d" style="width:55%;"/>
+  <img src="https://github.com/user-attachments/assets/1e16cc57-56b8-4def-a67c-d3a930e74989" style="width:26%;" />
+  <img src="https://github.com/user-attachments/assets/87049a90-df47-47e5-bba1-1f5dcbb2cfae" style="width:11%;" />
+  <img src="https://github.com/user-attachments/assets/20f8056a-bbdb-4980-a46d-08aa28cf2bdf" style="width:55%;" />
 </div>
+
 
 ### Merkle Root diagnostika (papildoma validacija)
 - Užklausiant konkretų bloką galima atspausdinti Merkle medžio struktūrą (pasirenkama interaktyviai).
@@ -422,11 +423,15 @@ Average nonce : 630.20
 
 ```
 Transaction
-  ID:    7a9c2f1e4d6b8a0c1f3e5d7c9b2a4e6f8d0c1b2a3e4f5d6c7b8a9c0d1e2f3a4
-  From:  e98f1cbac0e44e34a1b2c3d4e5f60718a9b0c1d2e3f405162738495a6b7c8d9
-  To:    b1355516d249c7ef1234567890abcdef1234567890abcdef1234567890abcd
-  Amount: 65 coins
-  Time: 1761501491
+      "id": "89ebec1897d722b7bf064790451d58617023752c4727696fa093c9902d3720b4",
+      "timestamp": 1762418539,
+      "inputs": [
+        {"prevTxId": "initial:47e853896b5ac3b361dfb709c34d39f5a1b313008d70e7ad7785e9ce74dcf3e4", "outputIndex": 0}
+      ],
+      "outputs": [
+        {"receiver": "3ee0ccea7ce7f49124e76e569ff391910c46aee51374afe098854dc453bb3aae", "amount": 859},
+        {"receiver": "47e853896b5ac3b361dfb709c34d39f5a1b313008d70e7ad7785e9ce74dcf3e4", "amount": 543019}
+      ]
 ```
 
 ### Bloko pavyzdys
