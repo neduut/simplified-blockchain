@@ -86,7 +86,7 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 ### Decentralizuotas kasimas
 - Tikslas: imituoti 5 kandidatinių blokų kasimą su laiko apribojimu.
 - Procesas:
-1. Iš `TxPool` suformuojami 5 kandidatiniai blokai (po ~100 patikrintų transakcijų kiekviename).
+1. Iš `TxPool` suformuojami 5 kandidatiniai blokai (po 100 patikrintų transakcijų kiekviename).
 2. Visi kandidatai kasami konkurencingai vienu metu (paraleliskai).
 3. Kiekvienas kandidatas kasamas atskirame threade. Pirmasis suradęs tinkamą hash'ą nustato bendrą `stopFlag`, ir visi kiti thread'ai nustoja kasti.
 4. Jei per raundą nei vienas neiškasa (neatrenka hash su pakankamu nulių skaičiumi) – laiko limitas padidinamas 1.5× ir kartojama (iki 10 raundų, kad nebūtų begalinio ciklo).
@@ -248,7 +248,7 @@ findTxByPrefix(prefix):
 5. Transaction ID automatiškai: `id = hash(inputs + outputs)`
 
 ### Bloko formavimas
-1. Iš TxPool pasirenkamos ~100 atsitiktinių transakcijų
+1. Iš TxPool pasirenkamos 100 atsitiktinių (patvirtintų) transakcijų
 2. **Dviejų žingsnių verifikacija**:
    - **Transakcijos ID tikrinimas**: Perskaičiuoja hash iš laukų (inputs + outputs) per `tx.verifyId()` ir lygina su saugomu `id`. Jei nesutampa — transakcija atmesta (galimai sugadinta arba suklastota).
    - **UTXO validacija**: `ledger.canApplyWithFee(tx, TX_FEE)` tikrina, ar visi transakcijos input UTXO egzistuoja ledger'yje ir ar jų bendra suma pakanka padengti output'us + mokestį. Jei input UTXO suma nepakankama arba UTXO neegzistuoja — transakcija atmesta.
@@ -273,14 +273,14 @@ while (true) {
 1. Pritaikomos transakcijos: `ledger.apply(tx)` kiekvienai – pašalina panaudotus input UTXO ir sukuria naujus output UTXO
 2. Transakcijos pašalinamos iš TxPool
 3. Blokas pridedamas į grandinę: `chain_.push_back(block)`
-4. Blokas išsaugomas į `logs/blockchain_log.txt`
+4. Blokas išsaugomas į `logs/...` katalogą.
 
 ### Patikrinimas (grandinės validacija)
 `isChainValid()` tikrina:
 - Ar dabartinis blokas `prevHash == previous.hash`
 - Ar blokas perhashintas teisingai: `hash(block.toString()) == block.hash`
 - Ar hash atitinka difficulty: `hash.substr(0, difficulty) == "000"`
-- Jei blokas v2, perskaičiuoja Merkle Root iš transakcijų ID ir patikrina, kad jis sutaptų su saugomu `txRoot` (nesutapus – grandinė laikoma negaliojančia)
+- Perskaičiuoja Merkle Root iš transakcijų ID ir patikrina, kad jis sutaptų su saugomu `txRoot` (nesutapus – grandinė laikoma negaliojančia)
 
 ## Mano sprendimai (papildomi patobulinimai)
 
