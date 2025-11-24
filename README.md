@@ -1,4 +1,4 @@
-﻿# Simplified Blockchain
+# Simplified Blockchain
 
 Blockchain projektas su Proof-of-Work algoritmu, transakcijomis ir **UTXO modeliu**.
 
@@ -86,7 +86,7 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 ### Decentralizuotas kasimas
 - Tikslas: imituoti 5 kandidatinių blokų kasimą su laiko apribojimu.
 - Procesas:
-1. Iš `TxPool` suformuojami 5 kandidatiniai blokai (po ~100 patikrintų transakcijų kiekviename).
+1. Iš `TxPool` suformuojami 5 kandidatiniai blokai (po 100 patikrintų transakcijų kiekviename).
 2. Visi kandidatai kasami konkurencingai vienu metu (paraleliskai).
 3. Kiekvienas kandidatas kasamas atskirame threade. Pirmasis suradęs tinkamą hash'ą nustato bendrą `stopFlag`, ir visi kiti thread'ai nustoja kasti.
 4. Jei per raundą nei vienas neiškasa (neatrenka hash su pakankamu nulių skaičiumi) – laiko limitas padidinamas 1.5× ir kartojama (iki 10 raundų, kad nebūtų begalinio ciklo).
@@ -95,6 +95,8 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 - API:
   - `Blockchain::mineCandidateBlocksParallel(TxPool&, Ledger&, size_t nTx=100, int numCandidates=5, double timeLimitSec=5.0, unsigned long long maxAttempts=0)` – paralelinis kandidatų kasimas su threads.
   - `Blockchain::mineBlockWithTimeLimitStop(Block&, double timeLimitSec, unsigned long long maxAttempts, std::atomic<bool>& stopFlag, unsigned long long& outNonce)` – kasa konkretų bloką su stopFlag mechanizmu.
+  ```      
+
 
                     ┌────────────────────────────────────┐
                   │ Blockchain::mineCandidateBlocksParallel() │
@@ -288,7 +290,7 @@ findTxByPrefix(prefix):
 5. Transaction ID automatiškai: `id = hash(inputs + outputs)`
 
 ### Bloko formavimas
-1. Iš TxPool pasirenkamos ~100 atsitiktinių transakcijų
+1. Iš TxPool pasirenkamos 100 atsitiktinių (patvirtintų) transakcijų
 2. **Dviejų žingsnių verifikacija**:
    - **Transakcijos ID tikrinimas**: Perskaičiuoja hash iš laukų (inputs + outputs) per `tx.verifyId()` ir lygina su saugomu `id`. Jei nesutampa — transakcija atmesta (galimai sugadinta arba suklastota).
    - **UTXO validacija**: `ledger.canApplyWithFee(tx, TX_FEE)` tikrina, ar visi transakcijos input UTXO egzistuoja ledger'yje ir ar jų bendra suma pakanka padengti output'us + mokestį. Jei input UTXO suma nepakankama arba UTXO neegzistuoja — transakcija atmesta.
@@ -313,14 +315,14 @@ while (true) {
 1. Pritaikomos transakcijos: `ledger.apply(tx)` kiekvienai – pašalina panaudotus input UTXO ir sukuria naujus output UTXO
 2. Transakcijos pašalinamos iš TxPool
 3. Blokas pridedamas į grandinę: `chain_.push_back(block)`
-4. Blokas išsaugomas į `logs/blockchain_log.txt`
+4. Blokas išsaugomas į `logs/...` katalogą.
 
 ### Patikrinimas (grandinės validacija)
 `isChainValid()` tikrina:
 - Ar dabartinis blokas `prevHash == previous.hash`
 - Ar blokas perhashintas teisingai: `hash(block.toString()) == block.hash`
 - Ar hash atitinka difficulty: `hash.substr(0, difficulty) == "000"`
-- Jei blokas v2, perskaičiuoja Merkle Root iš transakcijų ID ir patikrina, kad jis sutaptų su saugomu `txRoot` (nesutapus – grandinė laikoma negaliojančia)
+- Perskaičiuoja Merkle Root iš transakcijų ID ir patikrina, kad jis sutaptų su saugomu `txRoot` (nesutapus – grandinė laikoma negaliojančia)
 
 ## Mano sprendimai (papildomi patobulinimai)
 
@@ -332,9 +334,9 @@ while (true) {
 - JSON eksportas į `logs/block_#.json` įjungiamas `EXPORT_LOGS=1`.
 - Saugojamos kiekvieno bloko transakcijos ir Merkle Tree.
 <div style="display:flex; gap:10px; align-items:flex-start;">
-  <img src="https://github.com/user-attachments/assets/1e16cc57-56b8-4def-a67c-d3a930e74989" style="width:26%;"/>
-  <img src="https://github.com/user-attachments/assets/87049a90-df47-47e5-bba1-1f5dcbb2cfae" style="width:11%;"/>
-  <img src="https://github.com/user-attachments/assets/64dcff85-d3b3-4943-993e-4ce8f744282d" style="width:55%;"/>
+  <img src="https://github.com/user-attachments/assets/1e16cc57-56b8-4def-a67c-d3a930e74989" style="width:26%;" />
+  <img src="https://github.com/user-attachments/assets/87049a90-df47-47e5-bba1-1f5dcbb2cfae" style="width:11%;" />
+  <img src="https://github.com/user-attachments/assets/20f8056a-bbdb-4980-a46d-08aa28cf2bdf" style="width:55%;" />
 </div>
 
 ### Merkle Root diagnostika (papildoma validacija)
@@ -462,11 +464,15 @@ Average nonce : 630.20
 
 ```
 Transaction
-  ID:    7a9c2f1e4d6b8a0c1f3e5d7c9b2a4e6f8d0c1b2a3e4f5d6c7b8a9c0d1e2f3a4
-  From:  e98f1cbac0e44e34a1b2c3d4e5f60718a9b0c1d2e3f405162738495a6b7c8d9
-  To:    b1355516d249c7ef1234567890abcdef1234567890abcdef1234567890abcd
-  Amount: 65 coins
-  Time: 1761501491
+      "id": "89ebec1897d722b7bf064790451d58617023752c4727696fa093c9902d3720b4",
+      "timestamp": 1762418539,
+      "inputs": [
+        {"prevTxId": "initial:47e853896b5ac3b361dfb709c34d39f5a1b313008d70e7ad7785e9ce74dcf3e4", "outputIndex": 0}
+      ],
+      "outputs": [
+        {"receiver": "3ee0ccea7ce7f49124e76e569ff391910c46aee51374afe098854dc453bb3aae", "amount": 859},
+        {"receiver": "47e853896b5ac3b361dfb709c34d39f5a1b313008d70e7ad7785e9ce74dcf3e4", "amount": 543019}
+      ]
 ```
 
 ### Bloko pavyzdys
