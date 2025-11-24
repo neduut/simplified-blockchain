@@ -56,10 +56,9 @@ private:
     std::string previousHash_;
     unsigned long long nonce_;
     std::string hash_;
-    
-    // nauji laukai
     int version_;
     int difficulty_;
+    
     std::string txRoot_;
     std::vector<Transaction> transactions_;
 };

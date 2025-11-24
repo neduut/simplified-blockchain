@@ -6,10 +6,10 @@
 #include <sstream>
 #include <fstream>
 #include <iomanip>
-#include <thread>
 #include <atomic>
 #include <unordered_set>
 #include <set>
+#include <omp.h>
 #ifdef _WIN32
 #include <direct.h>
 #endif
@@ -56,11 +56,10 @@ void Blockchain::mineBlock(Block& block) {
             block.setHash(hash);
             double elapsed = timer.elapsed();
             
-            // Track mining statistics
             miningHistory_.push_back({elapsed, nonce + 1, block.getIndex()});
 
             std::cout << "Block #" << block.getIndex() << " mined.\n\n";
-            // --- Auto difficulty adjustment ---
+            // auto difficulty
             constexpr double TARGET_BLOCK_TIME = 0.2; // seconds
             constexpr int MIN_DIFFICULTY = 1;
             constexpr int MAX_DIFFICULTY = 10;
@@ -633,33 +632,33 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
         
     // compact console: skip verbose mining info
         
-        // paralelinis kasimas su threads
+        // paralelinis kasimas su OpenMP
         Timer roundTimer;
         std::atomic<bool> stopFlag{false};
-        std::atomic<int> winner{-1};
+        int winIdx = -1;
         std::vector<unsigned long long> nonces(candidates.size(), 0);
         std::vector<double> times(candidates.size(), 0.0);
-        std::vector<std::thread> threads;
-        threads.reserve(candidates.size());
 
-        for (size_t i = 0; i < candidates.size(); ++i) {
-            threads.emplace_back([&, i]() {
-                Timer t;
-                unsigned long long n = 0;
-                bool ok = mineBlockWithTimeLimitStop(candidates[i], currentTimeLimit, currentAttemptsLimit, n, stopFlag);
-                times[i] = t.elapsed();
-                if (ok) {
-                    nonces[i] = n;
-                    int expected = -1;
-                    if (winner.compare_exchange_strong(expected, static_cast<int>(i))) {
+        #pragma omp parallel for shared(stopFlag, winIdx, candidates, nonces, times)
+        for (int i = 0; i < static_cast<int>(candidates.size()); ++i) {
+            if (stopFlag.load(std::memory_order_relaxed)) continue;
+            
+            Timer t;
+            unsigned long long n = 0;
+            bool ok = mineBlockWithTimeLimitStop(candidates[i], currentTimeLimit, currentAttemptsLimit, n, stopFlag);
+            times[i] = t.elapsed();
+            
+            if (ok) {
+                nonces[i] = n;
+                #pragma omp critical
+                {
+                    if (winIdx == -1) {  // pirmas laimėtojas
+                        winIdx = i;
                         stopFlag.store(true, std::memory_order_relaxed);
                     }
                 }
-            });
+            }
         }
-        for (auto& th : threads) th.join();
-
-        int winIdx = winner.load();
         unsigned long long bestNonce = 0;
         double bestTime = 0.0;
         if (winIdx >= 0) {
@@ -908,10 +907,30 @@ void Blockchain::exportBlocksToJsonDir(const std::string& dirPath) const {
             for (size_t j = 0; j < txs.size(); ++j) {
                 file << "    {\n";
                 file << "      \"id\": \"" << txs[j].getId() << "\",\n";
-                file << "      \"from\": \"" << txs[j].getFrom() << "\",\n";
-                file << "      \"to\": \"" << txs[j].getTo() << "\",\n";
-                file << "      \"amount\": " << txs[j].getAmount() << ",\n";
-                file << "      \"timestamp\": " << txs[j].getTimestamp() << "\n";
+                file << "      \"timestamp\": " << txs[j].getTimestamp() << ",\n";
+                
+                // UTXO inputs
+                file << "      \"inputs\": [\n";
+                const auto& inputs = txs[j].getInputs();
+                for (size_t k = 0; k < inputs.size(); ++k) {
+                    file << "        {\"prevTxId\": \"" << inputs[k].prevTxId << "\", ";
+                    file << "\"outputIndex\": " << inputs[k].outputIndex << "}";
+                    if (k + 1 < inputs.size()) file << ",";
+                    file << "\n";
+                }
+                file << "      ],\n";
+                
+                // UTXO outputs
+                file << "      \"outputs\": [\n";
+                const auto& outputs = txs[j].getOutputs();
+                for (size_t k = 0; k < outputs.size(); ++k) {
+                    file << "        {\"receiver\": \"" << outputs[k].receiver << "\", ";
+                    file << "\"amount\": " << outputs[k].amount << "}";
+                    if (k + 1 < outputs.size()) file << ",";
+                    file << "\n";
+                }
+                file << "      ]\n";
+                
                 file << "    }" << (j + 1 < txs.size() ? "," : "") << "\n";
             }
             file << "  ]\n";

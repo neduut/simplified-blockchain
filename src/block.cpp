@@ -7,27 +7,27 @@
 
 Block::Block(int index, const std::string& data, const std::string& previousHash)
     : index_(index)
-    , timestamp_(std::time(nullptr))
-    , data_(data)
-    , previousHash_(previousHash)
-    , nonce_(0)
-    , hash_("")
-    , version_(1)
-    , difficulty_(0)
-    , txRoot_("") {}
+    timestamp_(std::time(nullptr)),
+    data_(data), 
+    previousHash_(previousHash),
+    nonce_(0),
+    hash_(""),
+    version_(1),
+    difficulty_(0),
+    txRoot_("") {}
 
 // konstruktorius su transakcijomis
 Block::Block(int index, const std::vector<Transaction>& transactions, 
              const std::string& previousHash, int difficulty)
     : index_(index)
-    , timestamp_(std::time(nullptr))
-    , data_("")
-    , previousHash_(previousHash)
-    , nonce_(0)
-    , hash_("")
-    , version_(2)
-    , difficulty_(difficulty)
-    , transactions_(transactions) {
+    timestamp_(std::time(nullptr)),
+    data_(""),
+    previousHash_(previousHash),
+    nonce_(0),
+    hash_(""),
+    version_(2),
+    difficulty_(difficulty),
+    transactions_(transactions) {
     
     // generuoja tikra Merkle Root is transakciju id
     std::vector<std::string> leaves;

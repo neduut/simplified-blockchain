@@ -45,9 +45,10 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
 
 **Ledger** (`ledger.h/cpp`)
 - **v0.2**: UTXO model (unordered_map<"txid:index", TxOutput>)
-- `getBalance(address)` - skaičiuoja iš visų UTXO, priklausančių adresui
-- `canApply()` - tikrina ar visi input UTXO egzistuoja ir suma pakanka
-- `apply()` - išleidžia input UTXO, sukuria output UTXO
+- Saugo neišleistus UTXO: `"txid:index" → TxOutput(receiver, amount)`
+- `getBalance(address)` - susumuoja visus neišleistus UTXO, priklausančius adresui
+- `canApply()` - tikrina ar visi transakcijos input UTXO egzistuoja ir jų bendra suma pakanka padengti output'us
+- `apply()` - pašalina panaudotus input UTXO (išleidžia) ir sukuria naujus output UTXO gavėjams
 - Apsauga nuo underflow (uint64_t)
 
 **User** (`user.h/cpp`)
@@ -95,6 +96,48 @@ Projektas naudoja gerąsias OOP praktikas ir yra suskirstytas į atskirus aiški
   - `Blockchain::mineCandidateBlocksParallel(TxPool&, Ledger&, size_t nTx=100, int numCandidates=5, double timeLimitSec=5.0, unsigned long long maxAttempts=0)` – paralelinis kandidatų kasimas su threads.
   - `Blockchain::mineBlockWithTimeLimitStop(Block&, double timeLimitSec, unsigned long long maxAttempts, std::atomic<bool>& stopFlag, unsigned long long& outNonce)` – kasa konkretų bloką su stopFlag mechanizmu.
 
+                    ┌────────────────────────────────────┐
+                  │ Blockchain::mineCandidateBlocksParallel() │
+                  └────────────────────────────────────┘
+                                    │
+                                    │
+                                    ▼
+                   ┌────────────────────────────────┐
+                   │ 5 kandidatiniai blokai          │
+                   │ (Candidate #1 ... #5)           │
+                   └────────────────────────────────┘
+                                    │
+                                    │  paleidžia 5 gijas (kasėjus)
+                                    ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                   THREADS                                    │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Thread #1  → mineBlockWithTimeLimitStop(Block1, stopFlag)                    │
+│ Thread #2  → mineBlockWithTimeLimitStop(Block2, stopFlag)                    │
+│ Thread #3  → mineBlockWithTimeLimitStop(Block3, stopFlag)                    │
+│ Thread #4  → mineBlockWithTimeLimitStop(Block4, stopFlag)                    │
+│ Thread #5  → mineBlockWithTimeLimitStop(Block5, stopFlag)                    │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │  visi kasa paraleliai:
+                                    │  nonce = 0, 1, 2, 3, ...
+                                    │  hash(toString()) → "000..."
+                                    ▼
+                    ┌────────────────────────────────────────────┐
+                    │  Vienas kasėjas randa tinkamą hash (000...) │
+                    └────────────────────────────────────────────┘
+                                    │
+                                    ▼
+                         stopFlag = true  ←──────  visos gijos tai mato
+                                    │
+                                    ▼
+           ┌──────────────────────────────────────────────────────────┐
+           │ Laimėtojo blokas įtraukiamas į grandinę (chain)          │
+           │ ledger.apply(transakcijos)                               │
+           │ TxPool.remove(panaudotos transakcijos)                   │
+           └──────────────────────────────────────────────────────────┘
+
+
 - Įgyvendinimas: 5 thread'ai kasa 5 kandidatus vienu metu. `std::atomic<bool> stopFlag` ir `std::atomic<int> winner` naudojami koordinacijai. Pirmas laimėtojas sustabdo visus kitus.
 
 ## PSEUDO-KODAI
@@ -112,18 +155,18 @@ canApply(tx):
   sumOutputs := 0
   for inp in tx.inputs:
     utxo := UTXO[key(inp.prevTxId, inp.outputIndex)]
-    if utxo not exists: return false  // trūksta įėjimo
+    if utxo not exists: return false  // UTXO neegzistuoja arba jau išleistas
     sumInputs += utxo.amount
   for out in tx.outputs:
     sumOutputs += out.amount
-  return sumInputs >= sumOutputs      // implicit fee = inputs - outputs
+  return sumInputs >= sumOutputs      // input UTXO suma turi padengti output'us (implicit fee = inputs - outputs)
 
 apply(tx):
   assert canApply(tx)
-  // Išleisti (pašalinti) įėjimus
+  // Pašalinti (išleisti) input UTXO
   for inp in tx.inputs:
     erase UTXO[key(inp.prevTxId, inp.outputIndex)]
-  // Sukurti naujus išėjimus (UTXO)
+  // Sukurti naujus output UTXO gavėjams
   for i, out in enumerate(tx.outputs):
     UTXO[key(tx.id, i)] = out
 ```
@@ -233,20 +276,22 @@ findTxByPrefix(prefix):
   return null
 ```
 
+
+
 ## Blokų ir transakcijų kūrimas, kasimas, patikrinimas
 
 ### Transakcijų kūrimas
 1. Sugeneruojami 1000 vartotojų su `User(name, publicKey, balance)`
 2. publicKey = `hash(name + unique_salt)`
-3. Balance - atsitiktinis [100..1 000 000]
-4. Sugeneruojamos 10000 transakcijų: `Transaction(from, to, amount)`
-5. Transaction ID automatiškai: `id = hash(from + to + amount + timestamp)`
+3. Kiekvienam vartotojui sukuriamas pradinis UTXO ledger'yje su atsitiktiniu balansu [100..1 000 000]
+4. Sugeneruojamos 10000 transakcijų: kiekviena transakcija referuoja vartotojo UTXO kaip input ir sukuria output'us gavėjui (+ change output siuntėjui)
+5. Transaction ID automatiškai: `id = hash(inputs + outputs)`
 
 ### Bloko formavimas
 1. Iš TxPool pasirenkamos ~100 atsitiktinių transakcijų
 2. **Dviejų žingsnių verifikacija**:
-   - **Transakcijos ID tikrinimas**: Perskaičiuoja hash iš laukų (from, to, amount, timestamp) per `tx.verifyId()` ir lygina su saugomu `id`. Jei nesutampa — transakcija atmesta (galimai sugadinta arba suklastota).
-   - **Balanso tikrinimas**: Tikrina per `ledger.canApply(tx)`, ar siuntėjas turi pakankamai lėšų. Jei balansas nepakankamas — transakcija atmesta.
+   - **Transakcijos ID tikrinimas**: Perskaičiuoja hash iš laukų (inputs + outputs) per `tx.verifyId()` ir lygina su saugomu `id`. Jei nesutampa — transakcija atmesta (galimai sugadinta arba suklastota).
+   - **UTXO validacija**: `ledger.canApplyWithFee(tx, TX_FEE)` tikrina, ar visi transakcijos input UTXO egzistuoja ledger'yje ir ar jų bendra suma pakanka padengti output'us + mokestį. Jei input UTXO suma nepakankama arba UTXO neegzistuoja — transakcija atmesta.
    - Atmestos transakcijos registruojamos konsolėje su priežastimi (invalid ID / insufficient balance) ir statistika.
 3. Tik abiejų patikrų praėjusios transakcijos įdedamos į naują `Block(index, validTx, prevHash, difficulty)`
 4. Block konstruktorius automatiškai skaičiuoja `txRoot = MerkleRoot(tx.id)` naudojant tikrą Merkle Tree (jei lygis nelyginis — paskutinis lapas dubliuojamas)
@@ -265,7 +310,7 @@ while (true) {
 ```
 
 ### Patvirtinimas
-1. Pritaikomos transakcijos: `ledger.apply(tx)` kiekvienai (atnaujina balansus)
+1. Pritaikomos transakcijos: `ledger.apply(tx)` kiekvienai – pašalina panaudotus input UTXO ir sukuria naujus output UTXO
 2. Transakcijos pašalinamos iš TxPool
 3. Blokas pridedamas į grandinę: `chain_.push_back(block)`
 4. Blokas išsaugomas į `logs/blockchain_log.txt`
@@ -286,6 +331,11 @@ while (true) {
 ### Logging / eksportas į logs/
 - JSON eksportas į `logs/block_#.json` įjungiamas `EXPORT_LOGS=1`.
 - Saugojamos kiekvieno bloko transakcijos ir Merkle Tree.
+<div style="display:flex; gap:10px; align-items:flex-start;">
+  <img src="https://github.com/user-attachments/assets/1e16cc57-56b8-4def-a67c-d3a930e74989" style="width:26%;"/>
+  <img src="https://github.com/user-attachments/assets/87049a90-df47-47e5-bba1-1f5dcbb2cfae" style="width:11%;"/>
+  <img src="https://github.com/user-attachments/assets/64dcff85-d3b3-4943-993e-4ce8f744282d" style="width:55%;"/>
+</div>
 
 ### Merkle Root diagnostika (papildoma validacija)
 - Užklausiant konkretų bloką galima atspausdinti Merkle medžio struktūrą (pasirenkama interaktyviai).
@@ -316,8 +366,8 @@ Options:
 
 ### Transakcijų mokestis (fees)
 - Fiksuotas mokestis: `TX_FEE = 1` moneta už kiekvieną transakciją.
-- Tikrinimas: `Ledger::canApplyWithFee(tx, fee)` – reikalauja, kad siuntėjas turėtų `amount + fee`.
-- Pritaikymas: `Ledger::applyWithFee(tx, feeCollector, fee)` – suma `amount` pervedama gavėjui, `fee` – `MINER_FEE`.
+- Tikrinimas: `Ledger::canApplyWithFee(tx, fee)` – tikrina, kad input UTXO suma padengtų output'ų sumą + mokestį.
+- Pritaikymas: Mokestis surenkamas per coinbase transakciją – bloko coinbase output'as apima `BLOCK_REWARD + totalFees`.
 - Rezultatuose rodoma eilutė: `Miner fees collected (MINER_FEE): X coins`.
 - Mokesčiai tik perskirstomi (nekuria naujų monetų). Bendrą pasiūlą didina tik `BLOCK_REWARD` per coinbase.
 
@@ -455,12 +505,12 @@ Kiekviena versija išsamiai aprašyta jos `README.md` faile.
 
 ## v0.1
 
-- Proof-of-Work kasimas su pastovia difficulty=3 (hash pradžia „000“)
+- Proof-of-Work kasimas su pastovia difficulty=3 (hash pradžia „000")
 - Blokų formatas: v1 (paprasti duomenys) ir v2 (transakcijos, Difficulty, tikras Merkle Root)
 - Pritaikyta nuosava 256-bit HEX hash funkcija (iš praeito projekto)
 - ~1000 vartotojų ir ~10000 transakcijų generavimas
 - Transaction Pool ir blokų formavimas iš ~100 transakcijų
-- Ledger su Account modeliu (`canApply`, `apply`) ir underflow apsauga
+- Ledger su UTXO modeliu (`canApply`, `apply`) – saugo neišleistus UTXO, validuoja input sumas
 - Grandinės validacija: `prevHash`, perhashinimas, difficulty ir Merkle Root tikrinimas
 - Log'ai: `logs/blockchain_log.txt` (blokai) ir `logs/merkle_log.txt` (transakcijos)
 - Interaktyvus užklausų meniu (blokų ir transakcijų paieška)

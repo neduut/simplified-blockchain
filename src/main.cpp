@@ -214,40 +214,40 @@ void queryTransactionInteractive(const Blockchain& blockchain, const TxPool& poo
 void runBlockchainSimulation(Blockchain& blockchain, TxPool& pool, vector<User>& users) {
     printHeader("Transaction System");
     
-    Ledger ledger;
-    
-    // sukuria ~1000 vartotoju
-    cout << "Generating ~1000 users...\n";
-    random_device rd;
-    mt19937 gen(rd());
-    uniform_int_distribution<> balanceDist(100, 1000000);
-    
-    // sukuria vartotojus su random balansu
-    for (int i = 0; i < 1000; ++i) {
-        string name = "User_" + to_string(i);
-        string pubKey = generatePublicKey(name + to_string(i));
-        uint64_t balance = balanceDist(gen);
-        users.emplace_back(name, pubKey, balance);
+        Ledger ledger;
         
-        // sukuria pradini UTXO ledgery
-        std::string initTxId = "initial:" + pubKey;
-        TxOutput initOutput(pubKey, balance);
-        ledger.addUTXO(initTxId, 0, initOutput);
-    }
-    
-    cout << "Created " << users.size() << " users\n";
-    cout << "Total coins in system: " << ledger.getTotalBalance() << "\n";
-    
-    // rodo pirmus 5 vartotojus kaip pavyzdi konsolej
-    cout << "\nSample users (first 5):\n";
-    cout << string(40, '-') << "\n";
-    for (size_t i = 0; i < min(size_t(5), users.size()); ++i) {
-        cout << "  " << users[i].getName() << " : " 
-             << users[i].getPublicKey().substr(0, 16) << "... : "
-             << users[i].getBalance() << " coins\n";
-    }
-    cout << "  ... and " << (users.size() - 5) << " more\n";
-    
+        // sukuria 1000 vartotoju
+        cout << "Generating 1000 users...\n";
+        random_device rd;
+        mt19937 gen(rd());
+        uniform_int_distribution<> balanceDist(100, 1000000);
+        
+        // sukuria vartotojus su random balansu
+        for (int i = 0; i < 1000; ++i) {
+            string name = "User_" + to_string(i);
+            string pubKey = generatePublicKey(name + to_string(i));
+            uint64_t balance = balanceDist(gen);
+            users.emplace_back(name, pubKey, balance);
+            
+            // sukuria pradini UTXO ledgery
+            std::string initTxId = "initial:" + pubKey;
+            TxOutput initOutput(pubKey, balance);
+            ledger.addUTXO(initTxId, 0, initOutput);
+        }
+        
+        cout << "Created " << users.size() << " users\n";
+        cout << "Total coins in system: " << ledger.getTotalBalance() << "\n";
+        
+        // rodo pirmus 5 vartotojus kaip pavyzdi konsolej
+        cout << "\nSample users (first 5):\n";
+        cout << string(40, '-') << "\n";
+        for (size_t i = 0; i < min(size_t(5), users.size()); ++i) {
+            cout << "  " << users[i].getName() << " : " 
+                << users[i].getPublicKey().substr(0, 16) << "... : "
+                << users[i].getBalance() << " coins\n";
+        }
+        cout << "  ... and " << (users.size() - 5) << " more\n";
+        
     // sukuria transaction pool - generate ~10000 transactions upfront for all blocks
     cout << "\nGenerating ~10000 UTXO transactions...\n";
     
@@ -258,7 +258,7 @@ void runBlockchainSimulation(Blockchain& blockchain, TxPool& pool, vector<User>&
     int txGenerated = 0;
     int attempts = 0;
     const int TARGET_TX = 10000;
-    const int MAX_ATTEMPTS = 15000; // allow some failed attempts
+    const int MAX_ATTEMPTS = 15000; 
     
     while (txGenerated < TARGET_TX && attempts < MAX_ATTEMPTS) {
         attempts++;
@@ -453,7 +453,6 @@ int main() {
         runBlockchainSimulation(blockchain, pool, users);
         
     // JSON eksportas: atskiri failai kiekvienam blokui tiesiai i logs/
-        // JSON export disabled by default. Enable via EXPORT_LOGS=1
         bool exportLogs = false;
         if (const char* envExport = std::getenv("EXPORT_LOGS")) {
             exportLogs = (std::string(envExport) == "1" || std::string(envExport) == "true");

@@ -21,7 +21,6 @@ MerkleTree MerkleTree::from_leaves(const std::vector<std::string>& leaves) {
         while (i < cur.size()) {
             const std::string& left = cur[i];
             const std::string& right = (i + 1 < cur.size()) ? cur[i + 1] : cur[i]; // dubliuojam paskutini jei nelyginis
-            // naudoja bendra taisykle: hash(left + right)
             next.push_back(generate_hash(left + right));
             i += 2;
         }
