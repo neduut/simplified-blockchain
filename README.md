@@ -6,10 +6,8 @@ WSL2 yra DAUG lėtesnis nei realus Linux, todėl visi instaliavimai vyko labaaai
 
 ## 1 DALIS: Merkle medžio implementacija su Libbitcoin 
 
----
-
 <details>
- <summary><strong>## 1.1 `Libbitcoin-System` įdiegimas</strong></summary>
+ <summary><strong>Libbitcoin-System įdiegimas</strong></summary>
 
 ### Žingsnis 1: Bandymas Windows aplinkoje (NEPAVYKO)
 
@@ -226,8 +224,8 @@ Gavau:
 Išvada: `libbitcoin-system` biblioteka instaliuot sėkmingai.
 <details>
 
-
-## 1.2 Užduoty pateiktos `create_merkle()` funkcijos analizė
+<details>
+ <summary><strong>1.2 Užduoty pateiktos create_merkle() funkcijos analizė<summary><strong>
 
 `create_merkle()` funkcija realizuoja Merkle tree konstrukciją pagal Bitcoin protokolo specifikaciją. Funkcija priima transakcijų hash'ų sąrašą (`bc::hash_list`) ir grąžina vieną hash'ą – Merkle root, naudojamą bloko header'yje.
 
@@ -384,9 +382,10 @@ tx0       tx1                  tx2          tx3
 - Teisingai apdoroja nelyginį skaičių hash'ų (duplikuoja paskutinį)
 - Iteratyvus algoritmas efektyviai sudaro Merkle medį be rekursijos
 - Galutinis Merkle root naudojamas bloko antraštėje transakcijų vientisumo patikrinimui
+<details>
 
-
-## 1.3 Kodo kompiliavimas ir testavimas
+<details>
+ <summary><strong> 1.3 Kodo kompiliavimas ir testavimas<summary><strong>
 
 Pateiktas kodas:  
 ```
@@ -409,3 +408,4 @@ Todėl įdiegiau clang++ į Ubuntu:
 sudo apt update
 sudo apt install clang -y
 ```
+<details>
