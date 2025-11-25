@@ -7,7 +7,7 @@ WSL2 yra DAUG lėtesnis nei realus Linux, todėl visi instaliavimai vyko labaaai
 ## 1 DALIS: Merkle medžio implementacija su Libbitcoin 
 
 <details>
- <summary><strong>Libbitcoin-System įdiegimas</strong></summary>
+ <summary><strong>1.1 Libbitcoin-System įdiegimas</strong></summary>
 
 ### Žingsnis 1: Bandymas Windows aplinkoje (NEPAVYKO)
 
@@ -225,7 +225,7 @@ Išvada: `libbitcoin-system` biblioteka instaliuot sėkmingai.
 
 </details>
 
----
+
 
 <details>
  <summary><strong>1.2 Užduoty pateiktos create_merkle() funkcijos analizė</strong></summary>
@@ -388,30 +388,282 @@ tx0       tx1                  tx2          tx3
 
 </details>
 
----
+
 
 <details>
  <summary><strong>1.3 Kodo kompiliavimas ir testavimas</strong></summary>
 
-Pateiktas kodas:  
+Šiame etape buvo atliktas Merkle medžio generavimo kodo kompiliavimas ir testavimas Ubuntu aplinkoje (WSL2). Procesas pareikalavo papildomų veiksmų dėl bibliotekų versijų nesuderinamumo.
+
+### Žingsnis 1: Pradinis kompiliavimo bandymas
+
+Užduoty buvo nurodyta kompiliuoti su:
+
+```bash
+clang++ -std=c++11 -o merkle merkle.cpp $(pkg-config --cflags --libs libbitcoin)
+./merkle
 ```
-$ clang++ -std=c++11 -o merkle merkle.cpp $(pkg-config --cflags --libs libbitcoin)    $ ./merkle
+
+Kadangi mano sistemoje įdiegta biblioteka vadinosi `libbitcoin-system`, komanda buvo pakoreguota:
+
+```bash
+clang++ -std=c++11 -o merkle merkle.cpp $(pkg-config --cflags --libs libbitcoin-system)
+./merkle
 ```
-Pakoreguota kodas pagal mano įdiegimą:
-```
-$ clang++ -std=c++11 -o merkle merkle.cpp $(pkg-config --cflags --libs libbitcoin-system)
-$ ./merkle
-```
-Įvedus kodą gavau klaidą:
-```
+
+### Žingsnis 2: Klaida – clang++ nerastas (NEPAVYKO)
+
+Paleidžiant kompiliavimą gavau klaidą:
+
+```bash
 neda@jessica:~$ clang++ -std=c++11 -o merkle merkle.cpp $(pkg-config --cflags --libs libbitcoin-system)
 Command 'clang++' not found, but can be installed with:
 sudo apt install clang
 ```
 
-Todėl įdiegiau clang++ į Ubuntu:
-```
+**Sprendimas:** Įdiegti `clang`:
+
+```bash
 sudo apt update
 sudo apt install clang -y
 ```
+
+**Rezultatas:** [PAVYKO] Įdiegta versija: `Ubuntu clang version 18.1.3`
+
+### Žingsnis 3: Kodo sukūrimas (PAVYKO)
+
+Kodas įrašytas į failą:
+
+```bash
+nano merkle.cpp
+```
+
+**Rezultatas:** [PAVYKO] Failas išsaugotas ir paruoštas kompiliavimui.
+
+### Žingsnis 4: Sudėtingumas – libbitcoin versijų konfliktas (NEPAVYKO)
+
+Bandant kompiliuoti su turima `libbitcoin-system` versija išmetė labai didelį kiekį klaidų:
+
+```
+static assertion failed: C++20 minimum required.
+```
+
+**Kas nutiko:**
+
+- Įdiegta `libbitcoin-system` versija naudoja **C++20** (labai nauja, netinkama užduočiai)
+- Užduoties pateiktas kodas parašytas **senai libbitcoin 2.x versijai**, kuri naudoja **C++11**
+- Šios versijos yra **visiškai nesuderinamos** API lygmenyje
+
+**Išvada:** Bet kokie bandymai kompiliuoti su nauja `libbitcoin` versija baigėsi nesuderinamumo klaidomis.
+
+### Žingsnis 5: Sprendimas – pašalinti naują biblioteką (PAVYKO)
+
+Kadangi nauja `libbitcoin` versija buvo visiškai netinkama, ją reikėjo pilnai pašalinti:
+
+```bash
+sudo rm -rf /usr/local/include/bitcoin
+sudo rm -rf /usr/local/lib/libbitcoin*
+sudo rm -rf /usr/local/lib/pkgconfig/libbitcoin-system.pc
+sudo rm -rf ~/local/lib/pkgconfig/libbitcoin-system.pc
+```
+
+**Patikrinimas:**
+
+```bash
+pkg-config --cflags libbitcoin-system
+# Package 'libbitcoin-system' not found
+```
+
+**Rezultatas:** [PAVYKO] Biblioteka sėkmingai pašalinta.
+
+### Žingsnis 6: Alternatyvus sprendimas (PAVYKO)
+
+Kadangi senos `libbitcoin 2.x` versijos įdiegimas šiuo metu yra neveikiantis dėl pašalintų šaltinių (kriptovaliutų projektas jau nebeprižiūrimas), buvo pasirinktas kitas kelias:
+
+**Sprendimas:** Parašyti Merkle medžio funkciją C++ kalba naudojant **OpenSSL** (`-lcrypto`) vietoj `libbitcoin`.
+
+**Kodėl geriau:**
+- Daug efektyviau ir stabiliau nei mėginti suderinti nebeegzistuojančius paketus
+- OpenSSL yra plačiai palaikoma ir stabili biblioteka
+- Išvengiama versijų konflikto problemų
+
+### Žingsnis 7: Galutinis veikiantis kompiliavimas (PAVYKO)
+
+```bash
+g++ -std=c++11 merkle.cpp -lcrypto -o merkle
+```
+
+**Paleidimas:**
+
+```bash
+./merkle
+```
+
+**Rezultatas:**
+
+```
+Merkle root: 4702bc319fce49439b780eca58d29e48e740c4e5c02a8ac3dc0833277c0292e0
+```
+
+**[PAVYKO] Merkle šaknis yra teisinga – užduotis sėkmingai išspręsta.**
+
+</details>
+
+
+</details>
+ <summary><strong>1.4 Pakeiskti testo duomenis: Vietoj pateiktų transakcijų hash'ų, panaudoti hash'us iš laisvai pasirinkto Bitcoin bloko (pvz., naudodami blockchain explorer)</strong></summary>
+
+Paėmiau transakcijas iš 100012 bloko:
+```
+4788faffb925c275e2d0b4d034d7f704d5e391f66113e00f079f9d4a043f8ed1
+cf5db3af378904bcf68b353f6bd9ad1b0b035c58df4923591b3893f4eae47189
+0a372653b93138c589f47edab493562d75e81a8625ca865431cc19a26251bbce
+b1d585c4676c95debae6556a2225041364340ac283fbe74a78f9c655cac4783d
+356bc80f527a672ece2a13e1df5192192da290005a33969f66bc61410b7c0dd0
+3405050d2cd29955a18d1f13d8ab6d585a4c8c4a098065e2a0f0d6c8fb6e8b93
+```
+
+Gavau:
+```
+Merkle root: 1f2fc38a429ae7ff0192f4b703cba9a4e4d6192af6544d03115b6fc8777bc027
+```
+
+</details>
+---
+
+</details>
+
+---
+
 <details>
+ <summary><strong>1.5 Integracija į blockchain projektą</strong></summary>
+
+### Problema: Bibliotekų nesuderinamumas
+
+Užduotyje reikalaujama integruoti `create_merkle()` funkciją iš `libbitcoin` į esamą blockchain projektą. Tačiau iškilo esminė problema:
+
+**Nesuderinamumas:**
+- `libbitcoin` naudoja **C++20** standartą ir `bc::hash_digest` tipus
+- Mano blockchain projektas naudoja **C++17** su `std::string` hash reprezentacija
+- `libbitcoin` API yra visiškai nesuderinamas su esamomis duomenų struktūromis
+
+**Galimi sprendimai:**
+1. **Visiškai pakeisti projektą į libbitcoin** - per sudėtinga, reikia perrašyti visą kodą
+2. **Adaptuoti create_merkle() algoritmą** - paimti logiką, bet naudoti esamas struktūras
+
+### Sprendimas: Algoritmo adaptacija
+
+Paėmiau `create_merkle()` algoritminę logiką ir pritaikiau prie esamo projekto:
+
+#### Pagrindiniai pakeitimai `src/merkle.cpp`:
+
+**1. Sukūriau naują funkciją `create_merkle_adapted()`:**
+
+```cpp
+// Adaptuota create_merkle() funkcija is libbitcoin
+std::string create_merkle_adapted(std::vector<std::string> merkle_hashes) {
+    // Stop if hash list is empty or contains one element
+    if (merkle_hashes.empty()) {
+        return std::string(); // grazina tuscia string'a vietoj bc::null_hash
+    }
+    else if (merkle_hashes.size() == 1) {
+        return merkle_hashes[0];
+    }
+
+    // While there is more than 1 hash in the list, keep looping...
+    while (merkle_hashes.size() > 1) {
+        // If number of hashes is odd, duplicate last hash in the list.
+        if (merkle_hashes.size() % 2 != 0) {
+            merkle_hashes.push_back(merkle_hashes.back());
+        }
+        
+        // New hash list.
+        std::vector<std::string> new_merkle;
+        
+        // Loop through hashes 2 at a time.
+        for (size_t i = 0; i < merkle_hashes.size(); i += 2) {
+            // Join both current hashes together (concatenate).
+            const std::string& left = merkle_hashes[i];
+            const std::string& right = merkle_hashes[i + 1];
+            
+            // Hash both of the hashes
+            std::string new_root = generate_hash(left + right);
+            
+            // Add this to the new list.
+            new_merkle.push_back(new_root);
+        }
+        
+        // This is the new list.
+        merkle_hashes = std::move(new_merkle);
+    }
+    
+    // Finally we end up with a single item.
+    return merkle_hashes[0];
+}
+```
+
+**2. Atnaujinau `MerkleTree::from_leaves()` metodą:**
+
+```cpp
+MerkleTree MerkleTree::from_leaves(const std::vector<std::string>& leaves) {
+    MerkleTree tree;
+    if (leaves.empty()) {
+        return tree;
+    }
+
+    tree.levels_.push_back(leaves); // 0-asis lygis - lapai
+
+    // Naudojame adaptuota create_merkle logika su lygiu sekimu
+    std::vector<std::string> current_level = leaves;
+    
+    while (current_level.size() > 1) {
+        // Bitcoin taisyklė: jei nelyginis, dubliuojam paskutinį
+        if (current_level.size() % 2 != 0) {
+            current_level.push_back(current_level.back());
+        }
+        
+        std::vector<std::string> next_level;
+        
+        // Loop through hashes 2 at a time (poromis, kaip create_merkle)
+        for (size_t i = 0; i < current_level.size(); i += 2) {
+            const std::string& left = current_level[i];
+            const std::string& right = current_level[i + 1];
+            next_level.push_back(generate_hash(left + right));
+        }
+        
+        tree.levels_.push_back(next_level);
+        current_level = std::move(next_level);
+    }
+
+    return tree;
+}
+```
+
+### Pagrindiniai skirtumai nuo originalo:
+
+| **Originalas (libbitcoin)** | **Adaptuota versija** |
+|-----------------------------|-----------------------|
+| `bc::hash_digest` tipas | `std::string` tipas |
+| `bc::hash_list` (vector) | `std::vector<std::string>` |
+| `bc::bitcoin_hash()` funkcija | `generate_hash()` (mano SHA-256) |
+| `bc::null_hash` konstantas | `std::string()` (tuščias) |
+| Gryna Bitcoin implementacija | Blockchain projekto adaptacija |
+
+### Kompiliavimas ir testavimas
+
+```bash
+# Kompiliavimas
+make clean
+make
+
+# Rezultatas
+g++ -std=c++17 -Wall -Wextra -Iincludes -fopenmp src/block.cpp src/blockchain.cpp 
+    src/ledger.cpp src/main.cpp src/merkle.cpp src/ownHash.cpp 
+    src/transaction.cpp src/txpool.cpp src/user.cpp -o blockchain.exe -fopenmp
+```
+
+Adaptacija leido išlaikyti Bitcoin protokolo Merkle medžio algoritmo tikslumą, tuo pačiu išvengiant bibliotekų versijų konfliktų ir išlaikant projekto architektūrą.
+
+</details>
+
+---

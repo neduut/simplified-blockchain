@@ -6,7 +6,7 @@
 #include <iomanip>
 
 Block::Block(int index, const std::string& data, const std::string& previousHash)
-    : index_(index)
+    : index_(index),
     timestamp_(std::time(nullptr)),
     data_(data), 
     previousHash_(previousHash),
@@ -19,7 +19,7 @@ Block::Block(int index, const std::string& data, const std::string& previousHash
 // konstruktorius su transakcijomis
 Block::Block(int index, const std::vector<Transaction>& transactions, 
              const std::string& previousHash, int difficulty)
-    : index_(index)
+    : index_(index),
     timestamp_(std::time(nullptr)),
     data_(""),
     previousHash_(previousHash),

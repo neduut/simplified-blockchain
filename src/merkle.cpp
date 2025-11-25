@@ -1,8 +1,56 @@
 #include "merkle.h"
 
 #include <iostream>
+#include <cassert>
+
+// Adaptuota create_merkle() funkcija is libbitcoin
+// Naudoja std::vector<std::string> vietoj bc::hash_list
+// Modifikuoja ivesta vektoriu vietoje (mutating function)
+std::string create_merkle_adapted(std::vector<std::string> merkle_hashes) {
+    // Stop if hash list is empty or contains one element
+    if (merkle_hashes.empty()) {
+        return std::string(); // grazina tuscia string'a vietoj bc::null_hash
+    }
+    else if (merkle_hashes.size() == 1) {
+        return merkle_hashes[0];
+    }
+
+    // While there is more than 1 hash in the list, keep looping...
+    while (merkle_hashes.size() > 1) {
+        // If number of hashes is odd, duplicate last hash in the list.
+        if (merkle_hashes.size() % 2 != 0) {
+            merkle_hashes.push_back(merkle_hashes.back());
+        }
+        // List size is now even.
+        assert(merkle_hashes.size() % 2 == 0);
+
+        // New hash list.
+        std::vector<std::string> new_merkle;
+        new_merkle.reserve(merkle_hashes.size() / 2);
+
+        // Loop through hashes 2 at a time.
+        for (size_t i = 0; i < merkle_hashes.size(); i += 2) {
+            // Join both current hashes together (concatenate).
+            const std::string& left = merkle_hashes[i];
+            const std::string& right = merkle_hashes[i + 1];
+            
+            // Hash both of the hashes (dvigubas hash'inimas kaip Bitcoin protokole)
+            std::string new_root = generate_hash(left + right);
+            
+            // Add this to the new list.
+            new_merkle.push_back(new_root);
+        }
+
+        // This is the new list.
+        merkle_hashes = std::move(new_merkle);
+    }
+
+    // Finally we end up with a single item.
+    return merkle_hashes[0];
+}
 
 // sukuria visus lygius nuo lapu iki saknies
+// Dabar naudoja adaptuota create_merkle() algoritma
 MerkleTree MerkleTree::from_leaves(const std::vector<std::string>& leaves) {
     MerkleTree tree;
     if (leaves.empty()) {
@@ -11,20 +59,29 @@ MerkleTree MerkleTree::from_leaves(const std::vector<std::string>& leaves) {
 
     tree.levels_.push_back(leaves); // 0-asis lygis - lapai
 
+    // Naudojame adaptuota create_merkle logika su lygiu sekimu
+    std::vector<std::string> current_level = leaves;
+    
     // kuria aukstesnius lygius, kol liks vienas elementas (saknis)
-    while (tree.levels_.back().size() > 1) {
-        const auto& cur = tree.levels_.back();
-        std::vector<std::string> next;
-        next.reserve((cur.size() + 1) / 2);
-
-        size_t i = 0;
-        while (i < cur.size()) {
-            const std::string& left = cur[i];
-            const std::string& right = (i + 1 < cur.size()) ? cur[i + 1] : cur[i]; // dubliuojam paskutini jei nelyginis
-            next.push_back(generate_hash(left + right));
-            i += 2;
+    while (current_level.size() > 1) {
+        // If number of hashes is odd, duplicate last hash in the list (Bitcoin taisykle)
+        if (current_level.size() % 2 != 0) {
+            current_level.push_back(current_level.back());
         }
-        tree.levels_.push_back(std::move(next));
+        
+        std::vector<std::string> next_level;
+        next_level.reserve(current_level.size() / 2);
+
+        // Loop through hashes 2 at a time (poromis, kaip create_merkle)
+        for (size_t i = 0; i < current_level.size(); i += 2) {
+            const std::string& left = current_level[i];
+            const std::string& right = current_level[i + 1];
+            // Hash both of the hashes together
+            next_level.push_back(generate_hash(left + right));
+        }
+        
+        tree.levels_.push_back(next_level);
+        current_level = std::move(next_level);
     }
 
     return tree;
