@@ -1,6 +1,6 @@
 # 3-oji (papildoma) užduotis: Bitcoin transakcijų ir blokų analizė su `Libbitcoin` ir `python-bitcoinlib`
 
-WSL2 yra DAUG lėtesnis nei realus Linux, todėl visi instaliavimai vyko labaaai ilgai.
+WSL2 yra daug lėtesnis nei realus Linux, todėl visi instaliavimai vyko labaaai ilgai.
 
 ---
 
@@ -209,121 +209,16 @@ sudo make install
 
 **Rezultatas:** [PAVYKO] Bibliotekas įdiegiau:
 - `/home/neda/local/lib/libbitcoin-system.so`
-- `/home/neda/local/include/bitcoin/system/`
-- `/home/neda/local/lib/pkgconfig/libbitcoin-system.pc`
+Santrauka:
+- libbitcoin pateiktas kodas reikalauja C++20 → nesuderinama su užduoties C++11.
+- Perėjimas prie savo realizacijos su OpenSSL (vienas SHA256 kvietimas per jungtą tekstą).
+- Įrankiai: `clang` įdiegtas, naudojamas `g++`.
 
-
-### Žingsnis 9: Patikrinimas (VEIKIA)
-
-Į Ubuntu terminalą įvedžiau:
-`pkg-config --cflags --libs libbitcoin-system`
-
-Gavau:
-`home/neda/local/include -L/usr/local/lib -lbitcoin-system -L/home/neda/local/lib -lboost_iostreams -lboost_locale -lboost_program_options -lboost_thread -lboost_url -lpthread -lrt -ldl -lsecp256k1`
-
-Išvada: `libbitcoin-system` biblioteka instaliuot sėkmingai.
-
-</details>
-
-
-
-<details>
- <summary><strong>1.2 Užduoty pateiktos create_merkle() funkcijos analizė</strong></summary>
-
-`create_merkle()` funkcija realizuoja Merkle tree konstrukciją pagal Bitcoin protokolo specifikaciją. Funkcija priima transakcijų hash'ų sąrašą (`bc::hash_list`) ir grąžina vieną hash'ą – Merkle root, naudojamą bloko header'yje.
-
-#### Funkcijos kodas:
-
-```cpp
-//merkle.cpp
-#include <bitcoin/bitcoin.hpp>
-
-// Merkle Root Hash
-bc::hash_digest create_merkle(bc::hash_list& merkle) {
-    // Stop if hash list is empty or contains one element
-    if (merkle.empty())
-        return bc::null_hash;
-    else if (merkle.size() == 1)
-        return merkle[0];
-
-    // While there is more than 1 hash in the list, keep looping...
-    while (merkle.size() > 1)
-    {
-        // If number of hashes is odd, duplicate last hash in the list.
-        if (merkle.size() % 2 != 0)
-            merkle.push_back(merkle.back());
-        // List size is now even.
-        assert(merkle.size() % 2 == 0);
-
-        // New hash list.
-        bc::hash_list new_merkle;
-        // Loop through hashes 2 at a time.
-        for (auto it = merkle.begin(); it != merkle.end(); it += 2)
-        {
-            // Join both current hashes together (concatenate).
-            bc::data_chunk concat_data(bc::hash_size * 2);
-            auto concat = bc::serializer<
-                decltype(concat_data.begin())>(concat_data.begin());
-            concat.write_hash(*it);
-            concat.write_hash(*(it + 1));
-            // Hash both of the hashes.
-            bc::hash_digest new_root = bc::bitcoin_hash(concat_data);
-            // Add this to the new list.
-            new_merkle.push_back(new_root);
-        }
-        // This is the new list.
-        merkle = new_merkle;
-
-        // DEBUG output
-        std::cout << "Current merkle hash list:" << std::endl;
-        for (const auto& hash: merkle)
-            std::cout << "  " << bc::encode_base16(hash) << std::endl;
-        std::cout << std::endl;
-    }
-
-    // Finally we end up with a single item.
-    return merkle[0];
-}
-```
-
-#### 1. Edge-case apdorojimas
-
-```cpp
-if (merkle.empty())
-    return bc::null_hash;
-else if (merkle.size() == 1)
-    return merkle[0];
-```
-
-- **Jei sąrašas tuščias:** grąžinamas `null_hash` (nulinis hash'as)
-- **Jei jame tik vienas hash'as:** jis jau yra galutinis Merkle root
-- **Paskirtis:** apsauga nuo neteisingo įvesties dydžio ir taisyklingo apdorojimo užtikrinimas
-
-#### 2. Nelyginio hash'ų skaičiaus tvarkymas
-
-```cpp
-if (merkle.size() % 2 != 0)
-    merkle.push_back(merkle.back());
-```
-
-- **Bitcoin taisyklė:** jeigu kuriame Merkle lygmenyje hash'ų skaičius nelyginis, paskutinis hash'as duplikuojamas, kad būtų galima sudaryti pilnas poras
-- **Pavyzdys:** `[A, B, C]` → `[A, B, C, C]`
-- **Kodėl svarbu:** tai užtikrina deterministinį, nuoseklų Merkle medžio kūrimą, kuris visada duoda tą patį rezultatą su tais pačiais hash'ais
-
-#### 3. Hash'ų porų sujungimas ir dvigubas hash'inimas
-
-```cpp
-for (auto it = merkle.begin(); it != merkle.end(); it += 2)
-{
-    // Sujungiami (concatenate) du hash'ai
-    concat.write_hash(*it);
-    concat.write_hash(*(it + 1));
-    
-    // Hash'inami dvigubu SHA-256 (bitcoin_hash)
-    bc::hash_digest new_root = bc::bitcoin_hash(concat_data);
-    
-    // Rezultatas įdedamas į naują sąrašą
+Kompiliacija/testas:
+```bash
     new_merkle.push_back(new_root);
+```
+Gautas testinis root: `4702bc31...92e0`.
 }
 ```
 
@@ -512,7 +407,6 @@ Merkle root: 4702bc319fce49439b780eca58d29e48e740c4e5c02a8ac3dc0833277c0292e0
 
 </details>
 
----
 
 <details>
  <summary><strong>1.4 Testavimas su realiomis Bitcoin transakcijomis</strong></summary>
@@ -600,11 +494,6 @@ Merkle root: 1f2fc38a429ae7ff0192f4b703cba9a4e4d6192af6544d03115b6fc8777bc027
 
 </details>
 
----
-
-</details>
-
----
 
 <details>
  <summary><strong>1.5 Integracija į blockchain projektą</strong></summary>
@@ -738,3 +627,86 @@ Adaptacija leido išlaikyti Bitcoin protokolo Merkle medžio algoritmo tikslumą
 </details>
 
 ---
+
+## 2 DALIS:  Pilno Bitcoin mazgo (Bitcoin Core) įdiegimas
+
+<details>
+ <summary><strong>2.1 Bitcoin Core mazgo įdiegimas ir sinchronizacija</strong></summary>
+
+Šioje dalyje įdiegiau ir paleidau pilną Bitcoin Core mazgą Ubuntu (WSL2) aplinkoje bei pradėjau pilną blockchain sinchronizaciją (Initial Block Download, IBD).
+
+### 1. Įdiegimas
+
+Kadangi oficialus Ubuntu PPA neveikė, paketą parsisiunčiau tiesiogiai iš `bitcoincore.org` ir įdiegiau binarus rankiniu būdu:
+
+```bash
+wget https://bitcoincore.org/bin/bitcoin-core-24.2/bitcoin-24.2-x86_64-linux-gnu.tar.gz
+tar -xvf bitcoin-24.2-x86_64-linux-gnu.tar.gz
+sudo install -m 0755 -t /usr/local/bin bitcoin-24.2/bin/*
+```
+
+### 2. Konfigūracija (`~/.bitcoin/bitcoin.conf`)
+
+Sukūriau konfigūracinį failą su mazgo ir RPC nustatymais. (Pastaba: README viešai NEREKOMENDUOJAMA talpinti realių slaptažodžių – čia pakeista į pavyzdinį.)
+
+```
+server=1
+daemon=1
+txindex=1
+
+rpcuser=neda_rpc_01
+rpcpassword=CHANGE_ME_SECURE_PASSWORD
+rpcallowip=0.0.0.0/0
+rpcbind=0.0.0.0
+rpcport=8332
+
+listen=1
+port=8333
+maxconnections=20
+```
+
+Pagrindiniai parametrai:
+- `txindex=1` – įjungia pilną transakcijų indeksą (reikalinga istoriniams lookup'ams)
+- `daemon=1` – paleidžia mazgą fone
+- `rpcallowip=0.0.0.0/0` + `rpcbind=0.0.0.0` – leidžia RPC (tik laboratoriniams tikslams; produkcijoje riboti IP!)
+- `maxconnections=20` – ribojamas priimtų peer'ų skaičius siekiant mažesnio resursų naudojimo WSL2 aplinkoje
+
+### 3. Paleidimas
+
+```bash
+bitcoind -daemon
+bitcoin-cli getblockchaininfo
+```
+
+### 4. Sinchronizacijos eiga (santrauka)
+
+Iš `debug.log` (su python kodu pasigaminau sutrumpintą versiją`debug-shortened.txt`), iš kurio analizavau sinchronizaciją, kuri vyko non-stop ~19 val. (2025-11-24 - 2025-11-25)
+
+Progresas:
+| Rodiklis | Pradžia | Pabaiga |
+|----------|--------:|--------:|
+| Blokų aukštis | 792,582 | 857,400 |
+| Progresas | 0.787 | 0.900 |
+| Vidutinis greitis | \~3000–3500 blokų/val. | stabilus |
+
+Komentarai:
+- Greitis būdingas WSL2 su SSD (IO našumas šiek tiek mažesnis nei natyviame Linux)
+- Progreso šuolis rodo normalų tikrinimo ir validavimo (headers + blocks + UTXO) etapą
+
+### 5. Būsena
+
+Mazgas šiuo metu:
+- dar vyksta sinchronizuojasi
+
+</details>
+
+---
+
+## 3 Bitcoin tinklo analizė su python-bitcoinlib
+Reikalavimai: prieiga prie full Bitcoin node.  
+<details>
+ <summary><strong>Įdiekti python-bitcoinlib</strong></summary>
+
+
+
+</details>
