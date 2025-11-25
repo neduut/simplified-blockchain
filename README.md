@@ -1,12 +1,15 @@
 # 3-oji (papildoma) užduotis: Bitcoin transakcijų ir blokų analizė su `Libbitcoin` ir `python-bitcoinlib`
 
+WSL2 yra DAUG lėtesnis nei realus Linux, todėl visi instaliavimai vyko labaaai ilgai.
+
 ---
 
 ## 1 DALIS: Merkle medžio implementacija su Libbitcoin 
 
 ---
 
-### 1.1 `Libbitcoin-System` įdiegimas
+<details>
+ <summary><strong>## 1.1 `Libbitcoin-System` įdiegimas</strong></summary>
 
 ### Žingsnis 1: Bandymas Windows aplinkoje (NEPAVYKO)
 
@@ -211,10 +214,20 @@ sudo make install
 - `/home/neda/local/include/bitcoin/system/`
 - `/home/neda/local/lib/pkgconfig/libbitcoin-system.pc`
 
----
+
+### Žingsnis 9: Patikrinimas (VEIKIA)
+
+Į Ubuntu terminalą įvedžiau:
+`pkg-config --cflags --libs libbitcoin-system`
+
+Gavau:
+`home/neda/local/include -L/usr/local/lib -lbitcoin-system -L/home/neda/local/lib -lboost_iostreams -lboost_locale -lboost_program_options -lboost_thread -lboost_url -lpthread -lrt -ldl -lsecp256k1`
+
+Išvada: `libbitcoin-system` biblioteka instaliuot sėkmingai.
+<details>
 
 
-### 2.1 Užduoty pateiktos `create_merkle()` funkcijos analizė
+## 1.2 Užduoty pateiktos `create_merkle()` funkcijos analizė
 
 `create_merkle()` funkcija realizuoja Merkle tree konstrukciją pagal Bitcoin protokolo specifikaciją. Funkcija priima transakcijų hash'ų sąrašą (`bc::hash_list`) ir grąžina vieną hash'ą – Merkle root, naudojamą bloko header'yje.
 
@@ -371,3 +384,28 @@ tx0       tx1                  tx2          tx3
 - Teisingai apdoroja nelyginį skaičių hash'ų (duplikuoja paskutinį)
 - Iteratyvus algoritmas efektyviai sudaro Merkle medį be rekursijos
 - Galutinis Merkle root naudojamas bloko antraštėje transakcijų vientisumo patikrinimui
+
+
+## 1.3 Kodo kompiliavimas ir testavimas
+
+Pateiktas kodas:  
+```
+$ clang++ -std=c++11 -o merkle merkle.cpp $(pkg-config --cflags --libs libbitcoin)    $ ./merkle
+```
+Pakoreguota kodas pagal mano įdiegimą:
+```
+$ clang++ -std=c++11 -o merkle merkle.cpp $(pkg-config --cflags --libs libbitcoin-system)
+$ ./merkle
+```
+Įvedus kodą gavau klaidą:
+```
+neda@jessica:~$ clang++ -std=c++11 -o merkle merkle.cpp $(pkg-config --cflags --libs libbitcoin-system)
+Command 'clang++' not found, but can be installed with:
+sudo apt install clang
+```
+
+Todėl įdiegiau clang++ į Ubuntu:
+```
+sudo apt update
+sudo apt install clang -y
+```
