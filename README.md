@@ -222,10 +222,13 @@ Gavau:
 `home/neda/local/include -L/usr/local/lib -lbitcoin-system -L/home/neda/local/lib -lboost_iostreams -lboost_locale -lboost_program_options -lboost_thread -lboost_url -lpthread -lrt -ldl -lsecp256k1`
 
 Išvada: `libbitcoin-system` biblioteka instaliuot sėkmingai.
-<details>
+
+</details>
+
+---
 
 <details>
- <summary><strong>1.2 Užduoty pateiktos create_merkle() funkcijos analizė<summary><strong>
+ <summary><strong>1.2 Užduoty pateiktos create_merkle() funkcijos analizė</strong></summary>
 
 `create_merkle()` funkcija realizuoja Merkle tree konstrukciją pagal Bitcoin protokolo specifikaciją. Funkcija priima transakcijų hash'ų sąrašą (`bc::hash_list`) ir grąžina vieną hash'ą – Merkle root, naudojamą bloko header'yje.
 
@@ -382,10 +385,13 @@ tx0       tx1                  tx2          tx3
 - Teisingai apdoroja nelyginį skaičių hash'ų (duplikuoja paskutinį)
 - Iteratyvus algoritmas efektyviai sudaro Merkle medį be rekursijos
 - Galutinis Merkle root naudojamas bloko antraštėje transakcijų vientisumo patikrinimui
-<details>
+
+</details>
+
+---
 
 <details>
- <summary><strong> 1.3 Kodo kompiliavimas ir testavimas<summary><strong>
+ <summary><strong>1.3 Kodo kompiliavimas ir testavimas</strong></summary>
 
 Pateiktas kodas:  
 ```
