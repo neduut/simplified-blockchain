@@ -38,6 +38,10 @@ Libbitcoin-System biblioteka reikalinga Merkle medžio implementacijai pagal Bit
 #include <bitcoin/bitcoin.hpp>
 
 // Merkle Root Hash
+// Funkcija dirba su little-endian bc::hash_digest tipais.
+// Byte order konversija vyksta išorėje:
+// - Įvedimas: bc::hash_literal() konvertuoja big-endian → little-endian
+// - Išvedimas: bc::encode_base16() konvertuoja little-endian → big-endian
 bc::hash_digest create_merkle(bc::hash_list& merkle) {
     // Stop if hash list is empty or contains one element
     if (merkle.empty())
@@ -76,6 +80,7 @@ bc::hash_digest create_merkle(bc::hash_list& merkle) {
         // DEBUG output
         std::cout << "Current merkle hash list:" << std::endl;
         for (const auto& hash: merkle)
+            // bc::encode_base16() konvertuoja little-endian → big-endian rodymui
             std::cout << "  " << bc::encode_base16(hash) << std::endl;
         std::cout << std::endl;
     }
@@ -205,6 +210,8 @@ Kompiliavimo susidūriau su versijų nesuderinamumu – nauja libbitcoin-system 
 | 6. Alternatyvus sprendimas (PAVYKO) | Algoritmo adaptacija projektui | Merkle algoritmas adaptuotas su `std::string` ir `generate_hash()` | Stabilus sprendimas | Originalios `create_merkle()` logika pritaikyta C++17 projektui |
 | 7. Galutinis kompiliavimas (PAVYKO) | Kompiliavimas su projekto Makefile | `make clean && make` | Sėkmingai sukompiliuota, blockchain veikia | **Užduotis išspręsta** |
 
+Perrašyta Merkle Tree funkcija `merkle_wsl.txt` faile.
+
 </details>
 
 
@@ -221,6 +228,7 @@ Kompiliavimo susidūriau su versijų nesuderinamumu – nauja libbitcoin-system 
 - **Transakcijų skaičius:** 6
 - **Merkle root:** `79b58b71679fcde7cc70cdd2164fa83b8fc4910100ad649ef49eb870c21bce13`
 
+
 ### Kodo atnaujinimas
 
 Pakeičiau `merkle.cpp` failo `main()` funkciją su naujais hash'ais:
@@ -229,6 +237,8 @@ Pakeičiau `merkle.cpp` failo `main()` funkciją su naujais hash'ais:
 int main() {
     // Transakcijų hash'ai iš bloko #100012
     bc::hash_list tx_hashes{{
+        // bc::hash_literal() - ČITA vyksta konversija iš big-endian (block explorer)
+        // į little-endian (Bitcoin protokolo bc::hash_digest formatas)
         bc::hash_literal("4788faffb925c275e2d0b4d034d7f704d5e391f66113e00f079f9d4a043f8ed1"),
         bc::hash_literal("cf5db3af378904bcf68b353f6bd9ad1b0b035c58df4923591b3893f4eae47189"),
         bc::hash_literal("0a372653b93138c589f47edab493562d75e81a8625ca865431cc19a26251bbce"),
@@ -237,22 +247,19 @@ int main() {
         bc::hash_literal("3405050d2cd29955a18d1f13d8ab6d585a4c8c4a098065e2a0f0d6c8fb6e8b93"),
     }};
 
+    // create_merkle() dirba su little-endian hash'ais, jokios konversijos čia nevyksta
     const bc::hash_digest merkle_root = create_merkle(tx_hashes);
+    
+    // bc::encode_base16() - ČITA vyksta konversija iš little-endian (bc::hash_digest)
+    // atgal į big-endian (string formatas išvedimui)
     std::cout << "Merkle Root Hash: " << bc::encode_base16(merkle_root) << std::endl;
     
     return 0;
 }
 ```
 
-**Sugeneruotas Merkle root:**
-```
-79b58b71679fcde7cc70cdd2164fa83b8fc4910100ad649ef49eb870c21bce13
-```
-
-**Tikrasis Merkle root iš bloko #100012:**
-```
-79b58b71679fcde7cc70cdd2164fa83b8fc4910100ad649ef49eb870c21bce13
-```
+**Rezultatas**
+![alt text](img/image9.png)
 
 ### Išvada: algoritmas veikia teisingai.
 
@@ -287,39 +294,37 @@ bc::hash_digest create_merkle(bc::hash_list& merkle) {
 
 **Ką padariau:**
 
-**1. Sukūriau naują `create_merkle_adapted()` funkciją:**
+**1. Duomenų tipų pritaikymas:**
 
-Tai 1:1 libbitcoin `create_merkle()` algoritmo kopija, tik su projekto tipais:
+Sukūriau `create_merkle_adapted()` - 1:1 libbitcoin algoritmo kopija, tik su projekto duomenų tipais:
 
-```cpp
-std::string create_merkle_adapted(std::vector<std::string> merkle_hashes)
-```
-
-| Kas pakeista | Originalas | Mano adaptacija |
+| Kas pakeista | Originalas (libbitcoin) | Adaptacija (prie esamo) |
 |--------------|-----------|-----------------|
 | **Grąžinamas tipas** | `bc::hash_digest` | `std::string` |
 | **Parametras** | `bc::hash_list&` (reference) | `std::vector<std::string>` (kopija) |
 | **Tuščias hash** | `bc::null_hash` | `std::string()` |
-| **Hash funkcija** | `bc::bitcoin_hash()` | `generate_hash()` (mano SHA-256) |
+| **Hash funkcija** | `bc::bitcoin_hash()` | `generate_hash()` (projekto SHA-256) |
 | **Iteracija** | `auto it = merkle.begin(); it += 2` | `for (size_t i = 0; i < size; i += 2)` |
+| **Byte order** | Automatinis (`bc::hash_literal()`) | Rankinis (reikia reversuoti testavimui) |
 
-**Algoritmas liko tas pats:**
+**Algoritmo logika nepakito:**
 1. Tikrinama tuščias/vienas elementas
 2. Dubliuojamas paskutinis, jei nelyginis skaičius
 3. Hash'inami poromis
 4. Kartojama, kol lieka vienas (root)
 
- 
-**Pagrindinis `MerkleTree::from_leaves()` metoo skirtumas:**
+**2. Pagrindinis `MerkleTree::from_leaves()`metodo skirtumas:**
 
-| Aspektas | Senoji implementacija | Nauja (libbitcoin stilius) |
+Projektas jau turėjo dubliavimo logiką, bet kitokią - inline ternary operatorių. Pakeičiau į libbitcoin stilių:
+
+| Aspektas | Prieš (v0.2) | Po (v0.3 su libbitcoin) |
 |----------|----------------------|---------------------------|
 | **Dubliavimo būdas** | Inline: `(i+1<size) ? cur[i+1] : cur[i]` | Explicit: `if (size%2!=0) push_back(back())` |
 | **Kada dubliuoja** | Hash'inimo metu (ternary) | Prieš hash'inimo ciklą (masyvo modifikacija) |
-| **Masyvo pakeitimas** | Nekeičia originalaus masyvo | Keičia - prideda dublikatą `[A,B,C]→[A,B,C,C]` |
-| **Kodo aiškumas** | Glausta, bet paslėpta logika | Aiški, dviejų žingsnių struktūra |
+| **Masyvo pakeitimas** | Nekeičia originalaus masyvo | Modifikuoja - prideda dublikatą `[A,B,C]→[A,B,C,C]` |
+| **Kodo aiškumas** | Glausta vienos eilutės išraiška | Aiški dviejų žingsnių struktūra |
 
-**Kodėl pakeitimas svarbus:** Libbitcoin būdas yra **eksplicitiškas** ir **lengviau sekti** - iš pradžių paruošiama lyginė pora, tada hash'inama. Tai atitinka Bitcoin Core ir kitų implementacijų stilių.
+**Kodėl pasikeitė:** Libbitcoin būdas yra **eksplicitiškas** - dubliavimas ir hash'inimas atskirti. Tai atitinka Bitcoin Core stilių ir lengviau sekti algoritmo eigą.
 
 ```cpp
 // Dabar naudoju libbitcoin algoritmo logiką
@@ -406,9 +411,9 @@ WSL2 yra daug lėtesnis nei realus Linux, todėl visi instaliavimai vyko labaaai
 
 | Parametras | Reikšmė |
 |------------|---------|
-| Blokų aukštis | 875,003 / 925,287 |
-| Progresas | 92.84% |
-| Blockchain dydis | ~708 GB |
+| Blokų aukštis | 877,301 / 925,295 |
+| Progresas | 93.18% |
+| Blockchain dydis | ~712 GB |
 | IBD (Initial Block Download) | **true** (dar vyksta) |
 | Connections | 10 (visi outbound) |
 | Inbound connections | **0** |
@@ -466,7 +471,7 @@ Patikrinimas per -> https://bitnodes.io/
 
 **Kada pradės veikti inbound?**
 
-Kai sinchronizacija pasieks ~99%, mazgas automatiškai pradės priimti įeinančius ryšius. Likę ~7% (~50,000 blokų), tai gali užtrukti dar kelias valandas WSL2 aplinkoje.
+Kai sinchronizacija pasieks ~99%, mazgas automatiškai pradės priimti įeinančius ryšius. Dar liko ~7% (~50,000 blokų).
 
 </details>
 

@@ -93,7 +93,6 @@ int main() {
     std::string root = merkle_root(tx_hex);
 
     std::cout << "Merkle root: " << root << std::endl;
-    std::cout << "Expected:    79b58b71679fcde7cc70cdd2164fa83b8fc4910100ad649ef49eb870c21bce13" << std::endl;
 
     return 0;
 }
