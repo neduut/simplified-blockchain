@@ -1,13 +1,13 @@
 # 3-oji (papildoma) užduotis: Bitcoin transakcijų ir blokų analizė su `Libbitcoin` ir `python-bitcoinlib`
 
-WSL2 yra daug lėtesnis nei realus Linux, todėl visi instaliavimai vyko labaaai ilgai.
-
 ---
 
 ## 1 DALIS: Merkle medžio implementacija su Libbitcoin 
 
 <details>
  <summary><strong>1.1 Libbitcoin-System įdiegimas</strong></summary>
+
+Libbitcoin-System biblioteka reikalinga Merkle medžio implementacijai pagal Bitcoin protokolą. Diegimo procesas buvo komplikuotas, nes Libbitcoin paketai pašalinti iš NuGet ir vcpkg, teko persijungti į WSL2 Ubuntu.
 
 | Žingsnis | Veiksmas | Komanda / Aprašymas | Rezultatas / Problemos | Pastabos |
 |----------|----------|---------------------|------------------------|----------|
@@ -193,15 +193,17 @@ tx0       tx1                  tx2          tx3
 <details>
  <summary><strong>1.3 Kodo kompiliavimas ir testavimas</strong></summary>
 
+Kompiliavimo susidūriau su versijų nesuderinamumu – nauja libbitcoin-system reikalauja C++20, tuo tarpu užduoties kodas parašytas C++11 standartui. Bandant spręsti konfliktus išaiškėjo, kad nauja libbitcoin versija visiškai nesuderinama su užduoties kodu API lygmenyje. Galiausiai, daliniam užduoties įvykdymui, priėjau prie alternatyvos - perrašyti Merkle funkciją naudojant OpenSSL biblioteką.
+
 | Žingsnis | Veiksmas | Komanda / Aprašymas | Rezultatas / Problemos | Pastabos |
 |----------|----------|---------------------|------------------------|----------|
 | 1. Pradinis kompiliavimo bandymas | Bandymas kompiliuoti su libbitcoin-system | `clang++ -std=c++11 -o merkle merkle.cpp $(pkg-config --cflags --libs libbitcoin-system)` | Kompilatoriaus klaida | Biblioteka vadinosi `libbitcoin-system`, ne `libbitcoin` |
 | 2. Klaida – clang++ nerastas (NEPAVYKO) | clang++ kompiliatoriaus įdiegimas | `sudo apt update`<br>`sudo apt install clang -y` | clang++ sėkmingai įdiegtas | Įdiegta versija: `Ubuntu clang version 18.1.3` |
 | 3. Kodo sukūrimas (PAVYKO) | Merkle kodo sukūrimas | `nano merkle.cpp` | Failas išsaugotas ir paruoštas kompiliavimui | Kodas paruoštas testavimui |
-| 4. libbitcoin versijų konfliktas (NEPAVYKO) | Bandymas kompiliuoti su nauja libbitcoin-system | Kompiliavimo bandymas su C++11 | Error: `C++20 minimum required` | Nauja libbitcoin naudoja C++20, sena užduoties versija – C++11. API visiškai nesuderinami. |
+| 4. libbitcoin versijų konfliktas (NEPAVYKO) | Bandymas kompiliuoti su nauja libbitcoin-system | Kompiliavimo bandymas su C++11 | Error: `C++20 minimum required` | Nauja libbitcoin (v3.8.0) naudoja C++20, užduoties kodas – C++11. API visiškai nesuderinami. Boost 1.83 nesuderinamas su libbitcoin v3 (`posix_time_types_wrk.hpp` nebėra). |
 | 5. Bibliotekos pašalinimas (PAVYKO) | Pilnas libbitcoin-system pašalinimas | `sudo rm -rf /usr/local/include/bitcoin`<br>`sudo rm -rf /usr/local/lib/libbitcoin*`<br>`sudo rm -rf /usr/local/lib/pkgconfig/libbitcoin-system.pc` | Biblioteka sėkmingai pašalinta | Patikrinimas: `pkg-config --cflags libbitcoin-system` grąžina "not found" |
-| 6. Alternatyvus sprendimas (PAVYKO) | OpenSSL naudojimas vietoj libbitcoin | Merkle funkcija perrašyta naudojant OpenSSL (`-lcrypto`) | Stabilus sprendimas | Sena libbitcoin 2.x versija nebeprižiūrima, OpenSSL – stabili ir plačiai palaikoma |
-| 7. Galutinis kompiliavimas (PAVYKO) | Kompiliavimas su OpenSSL | `g++ -std=c++11 merkle.cpp -lcrypto -o merkle`<br>`./merkle` | Merkle root: `4702bc319fce49439b780eca58d29e48e740c4e5c02a8ac3dc0833277c0292e0` | **Užduotis sėkmingai išspręsta** |
+| 6. Alternatyvus sprendimas (PAVYKO) | Algoritmo adaptacija projektui | Merkle algoritmas adaptuotas su `std::string` ir `generate_hash()` | Stabilus sprendimas | Originalios `create_merkle()` logika pritaikyta C++17 projektui |
+| 7. Galutinis kompiliavimas (PAVYKO) | Kompiliavimas su projekto Makefile | `make clean && make` | Sėkmingai sukompiliuota, blockchain veikia | **Užduotis išspręsta** |
 
 </details>
 
@@ -218,19 +220,6 @@ tx0       tx1                  tx2          tx3
 - **Timestamp:** 2010-12-29 11:57:43
 - **Transakcijų skaičius:** 6
 - **Merkle root (tikrasis):** `1f2fc38a429ae7ff0192f4b703cba9a4e4d6192af6544d03115b6fc8777bc027`
-
-### Transakcijų hash'ai
-
-Paėmiau visas 6 transakcijas iš šio bloko:
-
-```
-4788faffb925c275e2d0b4d034d7f704d5e391f66113e00f079f9d4a043f8ed1
-cf5db3af378904bcf68b353f6bd9ad1b0b035c58df4923591b3893f4eae47189
-0a372653b93138c589f47edab493562d75e81a8625ca865431cc19a26251bbce
-b1d585c4676c95debae6556a2225041364340ac283fbe74a78f9c655cac4783d
-356bc80f527a672ece2a13e1df5192192da290005a33969f66bc61410b7c0dd0
-3405050d2cd29955a18d1f13d8ab6d585a4c8c4a098065e2a0f0d6c8fb6e8b93
-```
 
 ### Kodo atnaujinimas
 
@@ -255,21 +244,6 @@ int main() {
 }
 ```
 
-### Kompiliavimas ir paleidimas
-
-```bash
-g++ -std=c++11 merkle.cpp -lcrypto -o merkle
-./merkle
-```
-
-### Rezultatas
-
-```
-Merkle root: 1f2fc38a429ae7ff0192f4b703cba9a4e4d6192af6544d03115b6fc8777bc027
-```
-
-### Patikrinimas
-
 **Sugeneruotas Merkle root:**
 ```
 1f2fc38a429ae7ff0192f4b703cba9a4e4d6192af6544d03115b6fc8777bc027
@@ -280,12 +254,7 @@ Merkle root: 1f2fc38a429ae7ff0192f4b703cba9a4e4d6192af6544d03115b6fc8777bc027
 1f2fc38a429ae7ff0192f4b703cba9a4e4d6192af6544d03115b6fc8777bc027
 ```
 
-### Išvados:
-
-- Testas atliktas su **realiomis Bitcoin transakcijomis** iš bloko #100012
-- Algoritmas **tiksliai atkartoja** Bitcoin Merkle medžio konstravimą
-- Rezultatas **patvirtintas** su blockchain explorer duomenimis
-- Implementacija atitinka **Bitcoin protokolo specifikaciją**
+### Išvada: algoritmas veikia teisingai.
 
 </details>
 
@@ -298,126 +267,82 @@ Merkle root: 1f2fc38a429ae7ff0192f4b703cba9a4e4d6192af6544d03115b6fc8777bc027
 Užduotyje reikalaujama integruoti `create_merkle()` funkciją iš `libbitcoin` į esamą blockchain projektą. Tačiau iškilo esminė problema:
 
 **Nesuderinamumas:**
-- `libbitcoin` naudoja **C++20** standartą ir `bc::hash_digest` tipus
-- Mano blockchain projektas naudoja **C++17** su `std::string` hash reprezentacija
-- `libbitcoin` API yra visiškai nesuderinamas su esamomis duomenų struktūromis
+- `libbitcoin-system` v3.8.0 naudoja **C++11**, bet Boost 1.83 nesuderinamas (trūksta `posix_time_types_wrk.hpp`)
+- Naujesni `libbitcoin` reikalauja **C++20** standarto
+- Projektas naudoja **C++17** su `std::string` hash tipu
+- `libbitcoin` `bc::hash_digest` tipai nesuderinami su projekto `std::string` hash'ais
 
-**Galimi sprendimai:**
-1. **Visiškai pakeisti projektą į libbitcoin** - per sudėtinga, reikia perrašyti visą kodą
-2. **Adaptuoti create_merkle() algoritmą** - paimti logiką, bet naudoti esamas struktūras
+**Sprendimas:**
 
-### Sprendimas: Algoritmo adaptacija
+Vietoj libbitcoin bibliotekos naudojimo, paėmiau originalios `create_merkle()` funkcijos **algoritmą** ir perrašiau jį taip, kad veiktų su mano projekto duomenų tipais. Algoritmo logika liko **identiška** Bitcoin protokolui, tik pakeisti duomenų tipai.
 
-Paėmiau `create_merkle()` algoritminę logiką ir pritaikiau prie esamo projekto:
+### Konkretūs pakeitimai:
 
-#### Pagrindiniai pakeitimai `src/merkle.cpp`:
-
-**1. Sukūriau naują funkciją `create_merkle_adapted()`:**
-
+**Ką turėjau (originalus libbitcoin kodas):**
 ```cpp
-// Adaptuota create_merkle() funkcija is libbitcoin
-std::string create_merkle_adapted(std::vector<std::string> merkle_hashes) {
-    // Stop if hash list is empty or contains one element
-    if (merkle_hashes.empty()) {
-        return std::string(); // grazina tuscia string'a vietoj bc::null_hash
-    }
-    else if (merkle_hashes.size() == 1) {
-        return merkle_hashes[0];
-    }
-
-    // While there is more than 1 hash in the list, keep looping...
-    while (merkle_hashes.size() > 1) {
-        // If number of hashes is odd, duplicate last hash in the list.
-        if (merkle_hashes.size() % 2 != 0) {
-            merkle_hashes.push_back(merkle_hashes.back());
-        }
-        
-        // New hash list.
-        std::vector<std::string> new_merkle;
-        
-        // Loop through hashes 2 at a time.
-        for (size_t i = 0; i < merkle_hashes.size(); i += 2) {
-            // Join both current hashes together (concatenate).
-            const std::string& left = merkle_hashes[i];
-            const std::string& right = merkle_hashes[i + 1];
-            
-            // Hash both of the hashes
-            std::string new_root = generate_hash(left + right);
-            
-            // Add this to the new list.
-            new_merkle.push_back(new_root);
-        }
-        
-        // This is the new list.
-        merkle_hashes = std::move(new_merkle);
-    }
-    
-    // Finally we end up with a single item.
-    return merkle_hashes[0];
+bc::hash_digest create_merkle(bc::hash_list& merkle) {
+    // Bitcoin Merkle algoritmas su bc:: tipais
 }
 ```
 
-**2. Atnaujinau `MerkleTree::from_leaves()` metodą:**
+**Ką padariau:**
+
+**1. Sukūriau naują `create_merkle_adapted()` funkciją:**
+
+Tai 1:1 libbitcoin `create_merkle()` algoritmo kopija, tik su projekto tipais:
 
 ```cpp
-MerkleTree MerkleTree::from_leaves(const std::vector<std::string>& leaves) {
-    MerkleTree tree;
-    if (leaves.empty()) {
-        return tree;
+std::string create_merkle_adapted(std::vector<std::string> merkle_hashes)
+```
+
+| Kas pakeista | Originalas | Mano adaptacija |
+|--------------|-----------|-----------------|
+| **Grąžinamas tipas** | `bc::hash_digest` | `std::string` |
+| **Parametras** | `bc::hash_list&` (reference) | `std::vector<std::string>` (kopija) |
+| **Tuščias hash** | `bc::null_hash` | `std::string()` |
+| **Hash funkcija** | `bc::bitcoin_hash()` | `generate_hash()` (mano SHA-256) |
+| **Iteracija** | `auto it = merkle.begin(); it += 2` | `for (size_t i = 0; i < size; i += 2)` |
+
+**Algoritmas liko tas pats:**
+1. Tikrinama tuščias/vienas elementas
+2. Dubliuojamas paskutinis, jei nelyginis skaičius
+3. Hash'inami poromis
+4. Kartojama, kol lieka vienas (root)
+
+ 
+**Pagrindinis `MerkleTree::from_leaves()` metoo skirtumas:**
+
+| Aspektas | Senoji implementacija | Nauja (libbitcoin stilius) |
+|----------|----------------------|---------------------------|
+| **Dubliavimo būdas** | Inline: `(i+1<size) ? cur[i+1] : cur[i]` | Explicit: `if (size%2!=0) push_back(back())` |
+| **Kada dubliuoja** | Hash'inimo metu (ternary) | Prieš hash'inimo ciklą (masyvo modifikacija) |
+| **Masyvo pakeitimas** | Nekeičia originalaus masyvo | Keičia - prideda dublikatą `[A,B,C]→[A,B,C,C]` |
+| **Kodo aiškumas** | Glausta, bet paslėpta logika | Aiški, dviejų žingsnių struktūra |
+
+**Kodėl pakeitimas svarbus:** Libbitcoin būdas yra **eksplicitiškas** ir **lengviau sekti** - iš pradžių paruošiama lyginė pora, tada hash'inama. Tai atitinka Bitcoin Core ir kitų implementacijų stilių.
+
+```cpp
+// Dabar naudoju libbitcoin algoritmo logiką
+while (current_level.size() > 1) {
+    // Bitcoin taisyklė: dubliuoti paskutinį, jei nelyginis
+    if (current_level.size() % 2 != 0) {
+        current_level.push_back(current_level.back());
     }
-
-    tree.levels_.push_back(leaves); // 0-asis lygis - lapai
-
-    // Naudojame adaptuota create_merkle logika su lygiu sekimu
-    std::vector<std::string> current_level = leaves;
     
-    while (current_level.size() > 1) {
-        // Bitcoin taisyklė: jei nelyginis, dubliuojam paskutinį
-        if (current_level.size() % 2 != 0) {
-            current_level.push_back(current_level.back());
-        }
-        
-        std::vector<std::string> next_level;
-        
-        // Loop through hashes 2 at a time (poromis, kaip create_merkle)
-        for (size_t i = 0; i < current_level.size(); i += 2) {
-            const std::string& left = current_level[i];
-            const std::string& right = current_level[i + 1];
-            next_level.push_back(generate_hash(left + right));
-        }
-        
-        tree.levels_.push_back(next_level);
-        current_level = std::move(next_level);
+    // Hash'inimas poromis (kaip libbitcoin)
+    for (size_t i = 0; i < current_level.size(); i += 2) {
+        const std::string& left = current_level[i];
+        const std::string& right = current_level[i + 1];
+        next_level.push_back(generate_hash(left + right));
     }
-
-    return tree;
+    
+    // Papildomas funkcionalumas - saugomi visi lygiai
+    tree.levels_.push_back(next_level);
+    current_level = next_level;
 }
 ```
 
-### Pagrindiniai skirtumai nuo originalo:
-
-| **Originalas (libbitcoin)** | **Adaptuota versija** |
-|-----------------------------|-----------------------|
-| `bc::hash_digest` tipas | `std::string` tipas |
-| `bc::hash_list` (vector) | `std::vector<std::string>` |
-| `bc::bitcoin_hash()` funkcija | `generate_hash()` (mano SHA-256) |
-| `bc::null_hash` konstantas | `std::string()` (tuščias) |
-| Gryna Bitcoin implementacija | Blockchain projekto adaptacija |
-
-### Kompiliavimas ir testavimas
-
-```bash
-# Kompiliavimas
-make clean
-make
-
-# Rezultatas
-g++ -std=c++17 -Wall -Wextra -Iincludes -fopenmp src/block.cpp src/blockchain.cpp 
-    src/ledger.cpp src/main.cpp src/merkle.cpp src/ownHash.cpp 
-    src/transaction.cpp src/txpool.cpp src/user.cpp -o blockchain.exe -fopenmp
-```
-
-Adaptacija leido išlaikyti Bitcoin protokolo Merkle medžio algoritmo tikslumą, tuo pačiu išvengiant bibliotekų versijų konfliktų ir išlaikant projekto architektūrą.
+Projektas dabar naudoja **tiksliai tą patį Bitcoin Merkle algoritmo principą** kaip libbitcoin, tik adaptuotą C++17 ir `std::string` tipams.
 
 </details>
 
@@ -460,19 +385,6 @@ port=8333
 maxconnections=20
 ```
 
-Pagrindiniai parametrai:
-- `txindex=1` – įjungia pilną transakcijų indeksą (reikalinga istoriniams lookup'ams)
-- `daemon=1` – paleidžia mazgą fone
-- `rpcallowip=0.0.0.0/0` + `rpcbind=0.0.0.0` – leidžia RPC (tik laboratoriniams tikslams; produkcijoje riboti IP!)
-- `maxconnections=20` – ribojamas priimtų peer'ų skaičius siekiant mažesnio resursų naudojimo WSL2 aplinkoje
-
-### 3. Paleidimas
-
-```bash
-bitcoind -daemon
-bitcoin-cli getblockchaininfo
-```
-
 ### 4. Sinchronizacijos eiga (santrauka)
 
 Iš `debug.log` (su python kodu pasigaminau sutrumpintą versiją`debug-shortened.txt`), iš kurio analizavau sinchronizaciją, kuri vyko non-stop ~19 val. (2025-11-24 - 2025-11-25)
@@ -484,12 +396,11 @@ Progresas:
 | Progresas | 0.787 | 0.900 |
 | Vidutinis greitis | \~3000–3500 blokų/val. | stabilus |
 
-Komentarai:
-- Greitis būdingas WSL2 su SSD (IO našumas šiek tiek mažesnis nei natyviame Linux)
-- Progreso šuolis rodo normalų tikrinimo ir validavimo (headers + blocks + UTXO) etapą
+WSL2 yra daug lėtesnis nei realus Linux, todėl visi instaliavimai vyko labaaai ilgai.
 
 ### 5. Būsena
 
+![alt text](img/image6.png)
 Mazgas šiuo metu dar vyksta sinchronizacija.
 
 </details>

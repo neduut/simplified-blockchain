@@ -1,0 +1,27 @@
+# Libbitcoin Docker aplinka
+FROM ubuntu:24.04
+
+# Atnaujinti sistemą
+RUN apt-get update && apt-get upgrade -y
+
+# Įdiegti būtinus įrankius
+RUN apt-get install -y \
+    build-essential \
+    wget \
+    git \
+    autoconf \
+    automake \
+    libtool \
+    pkg-config \
+    libssl-dev \
+    libboost-all-dev \
+    clang
+
+# Sukurti darbo direktoriją
+WORKDIR /workspace
+
+# Nukopijuoti test failą
+COPY test_libbitcoin_merkle.cpp /workspace/
+
+# Nustatyti default komandą
+CMD ["/bin/bash"]
