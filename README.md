@@ -212,14 +212,14 @@ Kompiliavimo susidūriau su versijų nesuderinamumu – nauja libbitcoin-system 
 <details>
  <summary><strong>1.4 Testavimas su realiomis Bitcoin transakcijomis</strong></summary>
 
-**Pasirinktas blokas:** [#100012](https://blockchair.com/bitcoin/block/100012)
+**Pasirinktas blokas:** [#100012](https://www.blockchain.com/explorer/blocks/btc/100012)
 
 **Bloko informacija:**
 - **Block height:** 100,012
-- **Block hash:** `00000000000080b66c911bd5ba14a74260057311eaeb1982802f7010f1a9f090`
+- **Block hash:** `000000000001a7246d9e15004de43bdc365aceef6bc349da97968829e2da2b66`
 - **Timestamp:** 2010-12-29 11:57:43
 - **Transakcijų skaičius:** 6
-- **Merkle root (tikrasis):** `1f2fc38a429ae7ff0192f4b703cba9a4e4d6192af6544d03115b6fc8777bc027`
+- **Merkle root:** `79b58b71679fcde7cc70cdd2164fa83b8fc4910100ad649ef49eb870c21bce13`
 
 ### Kodo atnaujinimas
 
@@ -246,12 +246,12 @@ int main() {
 
 **Sugeneruotas Merkle root:**
 ```
-1f2fc38a429ae7ff0192f4b703cba9a4e4d6192af6544d03115b6fc8777bc027
+79b58b71679fcde7cc70cdd2164fa83b8fc4910100ad649ef49eb870c21bce13
 ```
 
 **Tikrasis Merkle root iš bloko #100012:**
 ```
-1f2fc38a429ae7ff0192f4b703cba9a4e4d6192af6544d03115b6fc8777bc027
+79b58b71679fcde7cc70cdd2164fa83b8fc4910100ad649ef49eb870c21bce13
 ```
 
 ### Išvada: algoritmas veikia teisingai.
@@ -367,7 +367,7 @@ sudo install -m 0755 -t /usr/local/bin bitcoin-24.2/bin/*
 
 ### 2. Konfigūracija (`~/.bitcoin/bitcoin.conf`)
 
-Sukūriau konfigūracinį failą su mazgo ir RPC nustatymais. (Pastaba: README viešai NEREKOMENDUOJAMA talpinti realių slaptažodžių – čia pakeista į pavyzdinį.)
+Sukūriau konfigūracinį failą su mazgo ir RPC nustatymais. 
 
 ```
 server=1
@@ -375,7 +375,7 @@ daemon=1
 txindex=1
 
 rpcuser=neda_rpc_01
-rpcpassword=CHANGE_ME_SECURE_PASSWORD
+rpcpassword=*nerodomas*
 rpcallowip=0.0.0.0/0
 rpcbind=0.0.0.0
 rpcport=8332
@@ -385,9 +385,9 @@ port=8333
 maxconnections=20
 ```
 
-### 4. Sinchronizacijos eiga (santrauka)
+### 3. Sinchronizacijos eiga
 
-Iš `debug.log` (su python kodu pasigaminau sutrumpintą versiją`debug-shortened.txt`), iš kurio analizavau sinchronizaciją, kuri vyko non-stop ~19 val. (2025-11-24 - 2025-11-25)
+Iš `debug.log` (su python kodu pasigaminau sutrumpintą versiją `debug-shortened.txt`), iš kurio analizavau sinchronizaciją, kuri vyko non-stop ~19 val. (2025-11-24 - 2025-11-25)
 
 Progresas:
 | Rodiklis | Pradžia | Pabaiga |
@@ -398,23 +398,29 @@ Progresas:
 
 WSL2 yra daug lėtesnis nei realus Linux, todėl visi instaliavimai vyko labaaai ilgai.
 
-### 5. Būsena
+### 4. Dabartinė būsena (2025-11-26)
 
-![alt text](img/image6.png)
-Mazgas šiuo metu dar vyksta sinchronizacija.
+![Bitcoin Node Status](img/image6.png)
+
+**Sinchronizacijos parametrai:**
+
+| Parametras | Reikšmė |
+|------------|---------|
+| Blokų aukštis | 875,003 / 925,287 |
+| Progresas | 92.84% |
+| Blockchain dydis | ~708 GB |
+| IBD (Initial Block Download) | **true** (dar vyksta) |
+| Connections | 10 (visi outbound) |
+| Inbound connections | **0** |
 
 </details>
 
 <details>
- <summary><strong>2.2 Tinklo būsenos patikrinimas</strong></summary>
+ <summary><strong>2.2 Tinklo konfigūracija ir būsena</strong></summary>
 
 ### Tinklo informacija
 
-Patikrinau mazgo tinklo būseną komanda:
-
-```bash
-bitcoin-cli getnetworkinfo
-```
+![Bitcoin Network Info](img/image8.png)
 
 **Pagrindiniai parametrai:**
 
@@ -423,7 +429,7 @@ bitcoin-cli getnetworkinfo
 | Version | 240200 | Bitcoin Core 24.2.0 |
 | Protocol version | 70016 | Bitcoin protokolo versija |
 | Connections | 10 | Aktyvūs peer ryšiai |
-| Connections in | 0 | Įeinantys ryšiai |
+| Connections in | **0** | Įeinantys ryšiai (blokuoti IBD metu) |
 | Connections out | 10 | Išeinantys ryšiai |
 | Network active | true | Tinklas aktyvus |
 
@@ -436,37 +442,31 @@ bitcoin-cli getnetworkinfo
 
 ### Firewall konfigūracija
 
-Patikrinau ugniasienės būseną:
+![UFW Status](img/image7.png)
 
-```bash
-sudo ufw status
-```
+**Portas 8333:**
+- ✅ ALLOW from Anywhere (IPv4)
+- ✅ ALLOW from Anywhere (IPv6)
 
-**Rezultatas:**
 
-| Portas | Veiksmas | Iš | Protokolas |
-|--------|----------|-----|------------|
-| 8333/tcp | ALLOW | Anywhere | IPv4 |
-| 8333/tcp | ALLOW | Anywhere (v6) | IPv6 |
+## Kodėl mazgas unreachable kitiems?
 
-### Socket būsena
+Patikrinimas per -> https://bitnodes.io/
 
-Patikrinau, ar mazgas klausosi tinklo:
+**Problema:** Mazgas nepriima įeinančių ryšių (inbound connections = 0), nors portas 8333 atviras ir firewall sukonfigūruotas teisingai.
 
-```bash
-sudo ss -tuln | grep 8333
-```
+**Priežastis:** Bitcoin Core **automatiškai blokuoja** įeinančius ryšius kol vyksta **Initial Block Download (IBD)**. 
 
-**Rezultatas:**
-```
-tcp   LISTEN 0      128           0.0.0.0:8333       0.0.0.0:*
-tcp   LISTEN 0      128              [::]:8333          [::]:*
-```
+**Kodėl taip daroma?**
+- Nevisiškai sinchronizuotas mazgas negali patikimai aptarnauti kitų peer'ų užklausų
+- IBD metu mazgas turi mažiau resursų ir pralaidumo
+- Mazgas pradės priimti inbound connections automatiškai kai:
+  - `initialblockdownload` = `false`
+  - `verificationprogress` ≥ 0.99 (dabar: 0.9284)
 
-**Išvados:**
-- Mazgas klausosi **IPv4** ir **IPv6** tinkluose
-- Portas **8333** atviras ir prieinamas
-- Mazgas gali priimti įeinančius ryšius iš kitų peer'ų
+**Kada pradės veikti inbound?**
+
+Kai sinchronizacija pasieks ~99%, mazgas automatiškai pradės priimti įeinančius ryšius. Likę ~7% (~50,000 blokų), tai gali užtrukti dar kelias valandas WSL2 aplinkoje.
 
 </details>
 
@@ -478,11 +478,14 @@ tcp   LISTEN 0      128              [::]:8333          [::]:*
  <summary><strong>3.1 Python-bitcoinlib naudojimas su VU Bitcoin node</strong></summary>
 
 Reikalavimai: prieiga prie full Bitcoin node.  
-Kadangi mano Bitcoin Node dar nebuvo pilnai susisinchronizavęs, tai viską atlikau su VU node.
+Kadangi mano Bitcoin Node dar nebuvo pilnai susisinchronizavęs, tai viską atlikau su VU node. Python-bitcoinlib siųstis nereikėjo, nes VU node jau yra.
 
 ![Bitcoin RPC Connection](img/image-3.png)
 
-### 3.2 rpc_example.py, rpc_transaction.py ir rpc_block.py bandymas
+</details>
+
+<details>
+ <summary><strong> 3.2 rpc_example.py, rpc_transaction.py ir rpc_block.py bandymas</strong></summary>
 
 **1. rpc_example.py**
 

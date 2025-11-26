@@ -1,0 +1,99 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <openssl/sha.h>
+#include <iomanip>
+#include <sstream>
+
+// Helper: convert hex string → bytes
+std::vector<unsigned char> hex_to_bytes(const std::string& hex) {
+    std::vector<unsigned char> bytes;
+    bytes.reserve(hex.length() / 2);
+    for (size_t i = 0; i < hex.length(); i += 2) {
+        std::string byte = hex.substr(i, 2);
+        bytes.push_back((unsigned char) strtol(byte.c_str(), nullptr, 16));
+    }
+    return bytes;
+}
+
+// Helper: convert bytes → hex string
+std::string bytes_to_hex(const unsigned char* data, size_t len) {
+    std::stringstream ss;
+    for (size_t i = 0; i < len; ++i)
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int)data[i];
+    return ss.str();
+}
+
+// Reverse byte order (little-endian ↔ big-endian)
+std::string reverse_hex(const std::string& hex) {
+    std::string reversed;
+    for (int i = hex.length() - 2; i >= 0; i -= 2) {
+        reversed += hex.substr(i, 2);
+    }
+    return reversed;
+}
+
+// Double SHA-256
+std::string sha256d(const std::vector<unsigned char>& data) {
+    unsigned char hash1[SHA256_DIGEST_LENGTH];
+    unsigned char hash2[SHA256_DIGEST_LENGTH];
+
+    SHA256(data.data(), data.size(), hash1);
+    SHA256(hash1, SHA256_DIGEST_LENGTH, hash2);
+
+    return bytes_to_hex(hash2, SHA256_DIGEST_LENGTH);
+}
+
+// Build Merkle Root
+std::string merkle_root(std::vector<std::string> tx_hashes) {
+    if (tx_hashes.empty())
+        return "";
+
+    // Reverse each hash to little-endian (Bitcoin internal format)
+    for (auto& h : tx_hashes) {
+        h = reverse_hex(h);
+    }
+
+    while (tx_hashes.size() > 1) {
+        std::vector<std::string> new_hashes;
+
+        if (tx_hashes.size() % 2 != 0)
+            tx_hashes.push_back(tx_hashes.back());
+
+        for (size_t i = 0; i < tx_hashes.size(); i += 2) {
+            auto left = hex_to_bytes(tx_hashes[i]);
+            auto right = hex_to_bytes(tx_hashes[i + 1]);
+
+            std::vector<unsigned char> concat;
+            concat.insert(concat.end(), left.begin(), left.end());
+            concat.insert(concat.end(), right.begin(), right.end());
+
+            new_hashes.push_back(sha256d(concat));
+        }
+
+        tx_hashes = new_hashes;
+    }
+
+    // Reverse back to big-endian for display
+    return reverse_hex(tx_hashes[0]);
+}
+
+int main() {
+    // TX from block #100012
+    std::vector<std::string> tx_hex = {
+        "4788faffb925c275e2d0b4d034d7f704d5e391f66113e00f079f9d4a043f8ed1",
+        "cf5db3af378904bcf68b353f6bd9ad1b0b035c58df4923591b3893f4eae47189",
+        "0a372653b93138c589f47edab493562d75e81a8625ca865431cc19a26251bbce",
+        "b1d585c4676c95debae6556a2225041364340ac283fbe74a78f9c655cac4783d",
+        "356bc80f527a672ece2a13e1df5192192da290005a33969f66bc61410b7c0dd0",
+        "3405050d2cd29955a18d1f13d8ab6d585a4c8c4a098065e2a0f0d6c8fb6e8b93"
+    };
+
+    std::string root = merkle_root(tx_hex);
+
+    std::cout << "Merkle root: " << root << std::endl;
+    std::cout << "Expected:    79b58b71679fcde7cc70cdd2164fa83b8fc4910100ad649ef49eb870c21bce13" << std::endl;
+
+    return 0;
+}
