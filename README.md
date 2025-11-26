@@ -890,7 +890,7 @@ neda@jessica:~$
 Reikalavimai: prieiga prie full Bitcoin node.  
 Kadangi mano Bitcoin Node dar nebuvo pilnai susisinchronizavęs, tai viską atlikau su VU node.
 
-![alt text](image-3.png)
+![Bitcoin RPC Connection](img/image-3.png)
 
 ### 3.1.1 rpc_example.py, rpc_transaction.py ir rpc_block.py bandymas
 
@@ -981,7 +981,7 @@ print(f"{fee} BTC")
 0.06534852 BTC
 ```
 
-![alt text](image-5.png)
+![Transaction Fee Verification](img/image-5.png)
 
 Mokestis apskaičiuotas teisingai.
 
