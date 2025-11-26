@@ -209,16 +209,121 @@ sudo make install
 
 **Rezultatas:** [PAVYKO] Bibliotekas įdiegiau:
 - `/home/neda/local/lib/libbitcoin-system.so`
-Santrauka:
-- libbitcoin pateiktas kodas reikalauja C++20 → nesuderinama su užduoties C++11.
-- Perėjimas prie savo realizacijos su OpenSSL (vienas SHA256 kvietimas per jungtą tekstą).
-- Įrankiai: `clang` įdiegtas, naudojamas `g++`.
+- `/home/neda/local/include/bitcoin/system/`
+- `/home/neda/local/lib/pkgconfig/libbitcoin-system.pc`
 
-Kompiliacija/testas:
-```bash
-    new_merkle.push_back(new_root);
+
+### Žingsnis 9: Patikrinimas (VEIKIA)
+
+Į Ubuntu terminalą įvedžiau:
+`pkg-config --cflags --libs libbitcoin-system`
+
+Gavau:
+`home/neda/local/include -L/usr/local/lib -lbitcoin-system -L/home/neda/local/lib -lboost_iostreams -lboost_locale -lboost_program_options -lboost_thread -lboost_url -lpthread -lrt -ldl -lsecp256k1`
+
+Išvada: `libbitcoin-system` biblioteka instaliuot sėkmingai.
+
+</details>
+
+
+
+<details>
+ <summary><strong>1.2 Užduoty pateiktos create_merkle() funkcijos analizė</strong></summary>
+
+`create_merkle()` funkcija realizuoja Merkle tree konstrukciją pagal Bitcoin protokolo specifikaciją. Funkcija priima transakcijų hash'ų sąrašą (`bc::hash_list`) ir grąžina vieną hash'ą – Merkle root, naudojamą bloko header'yje.
+
+#### Funkcijos kodas:
+
+```cpp
+//merkle.cpp
+#include <bitcoin/bitcoin.hpp>
+
+// Merkle Root Hash
+bc::hash_digest create_merkle(bc::hash_list& merkle) {
+    // Stop if hash list is empty or contains one element
+    if (merkle.empty())
+        return bc::null_hash;
+    else if (merkle.size() == 1)
+        return merkle[0];
+
+    // While there is more than 1 hash in the list, keep looping...
+    while (merkle.size() > 1)
+    {
+        // If number of hashes is odd, duplicate last hash in the list.
+        if (merkle.size() % 2 != 0)
+            merkle.push_back(merkle.back());
+        // List size is now even.
+        assert(merkle.size() % 2 == 0);
+
+        // New hash list.
+        bc::hash_list new_merkle;
+        // Loop through hashes 2 at a time.
+        for (auto it = merkle.begin(); it != merkle.end(); it += 2)
+        {
+            // Join both current hashes together (concatenate).
+            bc::data_chunk concat_data(bc::hash_size * 2);
+            auto concat = bc::serializer<
+                decltype(concat_data.begin())>(concat_data.begin());
+            concat.write_hash(*it);
+            concat.write_hash(*(it + 1));
+            // Hash both of the hashes.
+            bc::hash_digest new_root = bc::bitcoin_hash(concat_data);
+            // Add this to the new list.
+            new_merkle.push_back(new_root);
+        }
+        // This is the new list.
+        merkle = new_merkle;
+
+        // DEBUG output
+        std::cout << "Current merkle hash list:" << std::endl;
+        for (const auto& hash: merkle)
+            std::cout << "  " << bc::encode_base16(hash) << std::endl;
+        std::cout << std::endl;
+    }
+
+    // Finally we end up with a single item.
+    return merkle[0];
+}
 ```
-Gautas testinis root: `4702bc31...92e0`.
+
+#### 1. Edge-case apdorojimas
+
+```cpp
+if (merkle.empty())
+    return bc::null_hash;
+else if (merkle.size() == 1)
+    return merkle[0];
+```
+
+- **Jei sąrašas tuščias:** grąžinamas `null_hash` (nulinis hash'as)
+- **Jei jame tik vienas hash'as:** jis jau yra galutinis Merkle root
+- **Paskirtis:** apsauga nuo neteisingo įvesties dydžio ir taisyklingo apdorojimo užtikrinimas
+
+#### 2. Nelyginio hash'ų skaičiaus tvarkymas
+
+```cpp
+if (merkle.size() % 2 != 0)
+    merkle.push_back(merkle.back());
+```
+
+- **Bitcoin taisyklė:** jeigu kuriame Merkle lygmenyje hash'ų skaičius nelyginis, paskutinis hash'as duplikuojamas, kad būtų galima sudaryti pilnas poras
+- **Pavyzdys:** `[A, B, C]` → `[A, B, C, C]`
+- **Kodėl svarbu:** tai užtikrina deterministinį, nuoseklų Merkle medžio kūrimą, kuris visada duoda tą patį rezultatą su tais pačiais hash'ais
+
+#### 3. Hash'ų porų sujungimas ir dvigubas hash'inimas
+
+```cpp
+for (auto it = merkle.begin(); it != merkle.end(); it += 2)
+{
+    // Sujungiami (concatenate) du hash'ai
+    concat.write_hash(*it);
+    concat.write_hash(*(it + 1));
+    
+    // Hash'inami dvigubu SHA-256 (bitcoin_hash)
+    bc::hash_digest new_root = bc::bitcoin_hash(concat_data);
+    
+    // Rezultatas įdedamas į naują sąrašą
+    new_merkle.push_back(new_root);
 }
 ```
 
@@ -698,15 +803,254 @@ Komentarai:
 Mazgas šiuo metu:
 - dar vyksta sinchronizuojasi
 
+
+neda@jessica:~$ bitcoin-cli getnetworkinfo
+{
+  "version": 240200,
+  "subversion": "/Satoshi:24.2.0/",
+  "protocolversion": 70016,
+  "localservices": "0000000000000409",
+  "localservicesnames": [
+    "NETWORK",
+    "WITNESS",
+    "NETWORK_LIMITED"
+  ],
+  "localrelay": true,
+  "timeoffset": -7,
+  "networkactive": true,
+  "connections": 10,
+  "connections_in": 0,
+  "connections_out": 10,
+  "networks": [
+    {
+      "name": "ipv4",
+      "limited": false,
+      "reachable": true,
+      "proxy": "",
+      "proxy_randomize_credentials": false
+    },
+    {
+      "name": "ipv6",
+      "limited": false,
+      "reachable": true,
+      "proxy": "",
+      "proxy_randomize_credentials": false
+    },
+    {
+      "name": "onion",
+      "limited": true,
+      "reachable": false,
+      "proxy": "",
+      "proxy_randomize_credentials": false
+    },
+    {
+      "name": "i2p",
+      "limited": true,
+      "reachable": false,
+      "proxy": "",
+      "proxy_randomize_credentials": false
+    },
+    {
+      "name": "cjdns",
+      "limited": true,
+      "reachable": false,
+      "proxy": "",
+      "proxy_randomize_credentials": false
+    }
+  ],
+  "relayfee": 0.00001000,
+  "incrementalfee": 0.00001000,
+  "localaddresses": [
+  ],
+  "warnings": ""
+}
+
+neda@jessica:~$ sudo ufw status
+Status: active
+
+To                         Action      From
+--                         ------      ----
+8333/tcp                   ALLOW       Anywhere
+8333/tcp (v6)              ALLOW       Anywhere (v6)
+
+neda@jessica:~$ sudo ss -tuln | grep 8333
+tcp   LISTEN 0      128           0.0.0.0:8333       0.0.0.0:*
+tcp   LISTEN 0      128              [::]:8333          [::]:*
+neda@jessica:~$
+
 </details>
 
 ---
 
-## 3 Bitcoin tinklo analizė su python-bitcoinlib
-Reikalavimai: prieiga prie full Bitcoin node.  
+## 3 DALIS: Bitcoin tinklo analizė su python-bitcoinlib
+
 <details>
- <summary><strong>Įdiekti python-bitcoinlib</strong></summary>
+ <summary><strong>3.1 Python-bitcoinlib naudojimas su VU Bitcoin node</strong></summary>
 
+Reikalavimai: prieiga prie full Bitcoin node.  
+Kadangi mano Bitcoin Node dar nebuvo pilnai susisinchronizavęs, tai viską atlikau su VU node.
 
+![alt text](image-3.png)
+
+### 3.1.1 rpc_example.py, rpc_transaction.py ir rpc_block.py bandymas
+
+**1. rpc_example.py**
+
+Parodo, kaip gauti bendrą blokų skaičių iš Bitcoin mazgo.
+
+```bash
+user15@aleksandr-OptiPlex-790:~$ python3 rpc_example.py
+925271
+```
+
+**2. rpc_transaction.py**
+
+Naudojama transakcijos ID analizei ir išvestims gauti. Tai parodo, kaip gauti informaciją apie tam tikrą transakciją pagal jos txid ir išvesti adresus ir jų vertes.
+
+```bash
+user15@aleksandr-OptiPlex-790:~$ python3 rpc_transaction.py
+1GdK9UzpHBzqzX2A9JFP3Di4weBwqgmoQA 0.01500000
+1Cdid9KFAaatwczBwBttQcwXYCpvK8h7FK 0.08450000
+```
+
+**3. rpc_block.py**
+
+Analizuoja tam tikrą bloką pagal jo aukštį, gauna visas transakcijas ir apskaičiuoja visą blokų vertę, sumuojant visų transakcijų išvestis.
+
+```bash
+user15@aleksandr-OptiPlex-790:~$ python3 rpc_block.py
+Total output value (in BTC) in block #277316:  10322.07722534
+```
+
+### Išvados
+
+Python-bitcoinlib biblioteka leidžia bendrauti su Bitcoin Core mazgu ir gauti informaciją apie blokų grandinę, transakcijas ir blokų vertes. Naudojant RPC (Remote Procedure Call) metodus, įskaitant `getblockchaininfo`, `getrawtransaction`, ir `getblockhash`, galima išgauti duomenis apie Bitcoin tinklą ir atlikti įvairias analizes, tokias kaip blokų skaičiaus gavimas, transakcijų išvestys ir blokų vertės skaičiavimas. Ši biblioteka leidžia efektyviai manipuliuoti Bitcoin duomenimis ir analizuoti juos naudojant Python.
+
+</details>
+
+<details>
+ <summary><strong>3.2 Transakcijos mokesčio apskaičiavimas</strong></summary>
+
+**Užduotis:** Parašykite programą, kuri apskaičiuoja Bitcoin transakcijos mokestį pagal jos hash'ą. Išbandykite ją su 2019-09-06 įvykusia viena vertingiausių transakcijų (ID: `4410c8d14ff9f87ceeed1d65cb58e7c7b2422b2d7529afc675208ce2ce09ed7d`).
+
+### Kodas:
+
+```python
+from bitcoin.rpc import RawProxy
+
+# Sukuriamas ryšys su Bitcoin Core mazgu
+p = RawProxy()
+
+def get_transaction_fee(txid):
+    # Gauti žaliąją transakciją (raw transaction) HEX formatu
+    raw_tx = p.getrawtransaction(txid, True)  # True, kad gauti visą dekoduotą transakciją
+
+    # Dekoduoti transakciją
+    decoded_tx = raw_tx
+
+    # Suskaičiuokite įėjimus ir išėjimus
+    input_total = 0
+    output_total = 0
+
+    # Suskaičiuokite įėjimų sumą
+    for txin in decoded_tx['vin']:
+        # Rasti susijusį išėjimą pagal txid ir vout indeksą
+        previous_tx = p.getrawtransaction(txin['txid'], True)
+        input_total += previous_tx['vout'][txin['vout']]['value']
+
+    # Suskaičiuokite išėjimų sumą
+    for txout in decoded_tx['vout']:
+        output_total += txout['value']
+
+    # Apskaičiuokite transakcijos mokestį
+    transaction_fee = input_total - output_total
+
+    return transaction_fee
+
+# Transakcijos hash
+txid = "4410c8d14ff9f87ceeed1d65cb58e7c7b2422b2d7529afc675208ce2ce09ed7d" 
+
+# Išvedimas
+fee = get_transaction_fee(txid)
+print(f"{fee} BTC")
+```
+
+### Rezultatas:
+
+```
+0.06534852 BTC
+```
+
+![alt text](image-5.png)
+
+Mokestis apskaičiuotas teisingai.
+
+</details>
+
+<details>
+ <summary><strong>3.3 Bloko hash'o patikrinimas</strong></summary>
+
+**Užduotis:** Patikrinkite bloko hash'ą: Parašykite programą, kuri patikrina, ar bloko hash'as yra teisingai apskaičiuotas pagal bloko header'io informaciją. Šis šaltinis gali būti naudingas: https://en.bitcoin.it/wiki/Block_hashing_algorithm.
+
+### Kodas:
+
+```python
+import hashlib
+from bitcoin.rpc import RawProxy
+
+# Sukuriamas ryšys su Bitcoin Core mazgu
+p = RawProxy()
+
+def double_sha256(data):
+    """Atlikti dvigubą SHA-256 hash'inimą."""
+    return hashlib.sha256(hashlib.sha256(data).digest()).digest()
+
+def check_block_hash(block_height):
+    """Patikrina, ar bloko hash'as teisingai apskaičiuotas pagal bloko header'į."""
+
+    # Gauti bloko hash'ą pagal aukštį
+    block_hash = p.getblockhash(block_height)
+
+    # Gauti bloko header'į pagal bloko hash'ą
+    block_header = p.getblockheader(block_hash)
+
+    # Sukuriamas 80 baitų bloką pagal Bitcoin blokų header'io formatą
+    header = (
+        block_header['version'].to_bytes(4, 'little') +
+        bytes.fromhex(block_header['previousblockhash'])[::-1] +  # Atvirkštinis
+        bytes.fromhex(block_header['merkleroot'])[::-1] +  # Atvirkštinis
+        block_header['time'].to_bytes(4, 'little') +
+        int(block_header['bits'], 16).to_bytes(4, 'little') +
+        block_header['nonce'].to_bytes(4, 'little')
+    )
+
+    # Apskaičiuojamas bloko hash'ą
+    calculated_hash = double_sha256(header)
+    calculated_hash_hex = calculated_hash[::-1].hex()  # Atvirkštinis, nes Bitcoin hash'as rodomas mažesne tvarka
+
+    # Išvedimas
+    print(f"Hash iš nodo : {block_hash}")
+    print(f"Apskaičiuotas: {calculated_hash_hex}")
+    
+    # Palyginamas
+    if calculated_hash_hex == block_hash:
+        print(f"Ar sutampa? : Taip")
+    else:
+        print(f"Ar sutampa? : Ne")
+
+# Tikrinamas blokas
+block_height = 100000  
+
+# Patikrinamas bloko hash'as
+check_block_hash(block_height)
+```
+
+### Rezultatas:
+
+```
+Hash iš nodo : 000000000003ba27aa200b1cecaad478d2b00432346c3f1f3986da1afd33e506
+Apskaičiuotas: 000000000003ba27aa200b1cecaad478d2b00432346c3f1f3986da1afd33e506
+Ar sutampa?  : Taip
+```
 
 </details>
