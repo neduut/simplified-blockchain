@@ -496,6 +496,23 @@ Kadangi mano Bitcoin Node dar nebuvo pilnai susisinchronizavęs, tai viską atli
 
 Parodo, kaip gauti bendrą blokų skaičių iš Bitcoin mazgo.
 
+<details>
+ <summary><strong>Kodas</strong></summary>
+ ```bash
+ # Pavyzdys, kaip naudoti `rpc_example.py`:
+from bitcoin.rpc import RawProxy
+
+# Sukuriame jungtį su vietiniu Bitcoin Core mazgu
+p = RawProxy()
+
+# Paleidžiame komandą `getblockchaininfo` ir saugome gautą informaciją į kintamąjį `info`
+info = p.getblockchaininfo()
+
+# Išvedame `blocks` elementą iš gautos informacijos
+print(info['blocks'])
+```
+</details>
+
 ```bash
 user15@aleksandr-OptiPlex-790:~$ python3 rpc_example.py
 925271
@@ -504,6 +521,30 @@ user15@aleksandr-OptiPlex-790:~$ python3 rpc_example.py
 **2. rpc_transaction.py**
 
 Naudojama transakcijos ID analizei ir išvestims gauti. Tai parodo, kaip gauti informaciją apie tam tikrą transakciją pagal jos txid ir išvesti adresus ir jų vertes.
+
+<details>
+ <summary><strong>Kodas</strong></summary>
+ ```bash
+# `rpc_transaction.py` pavyzdys:
+from bitcoin.rpc import RawProxy
+
+# Sukuriame jungtį su vietiniu Bitcoin Core mazgu
+p = RawProxy()
+
+# Alice transakcijos ID
+txid = "0627052b6f28912f2703066a912ea577f2ce4da4caa5a5fbd8a57286c345c2f2"
+
+# Pirmiausia, gaukite žaliąją transakciją hex formatu
+raw_tx = p.getrawtransaction(txid)
+
+# Iššifruokite transakcijos hex į JSON objektą
+decoded_tx = p.decoderawtransaction(raw_tx)
+
+# Išveskite kiekvieną išvestį iš transakcijos
+for output in decoded_tx['vout']:
+    print(output['scriptPubKey']['address'], output['value'])
+ ```
+</details>
 
 ```bash
 user15@aleksandr-OptiPlex-790:~$ python3 rpc_transaction.py
@@ -514,6 +555,52 @@ user15@aleksandr-OptiPlex-790:~$ python3 rpc_transaction.py
 **3. rpc_block.py**
 
 Analizuoja tam tikrą bloką pagal jo aukštį, gauna visas transakcijas ir apskaičiuoja visą blokų vertę, sumuojant visų transakcijų išvestis.
+
+<details>
+ <summary><strong>Kodas</strong></summary>
+ ```bash
+ # `rpc_block.py` pavyzdys:
+from bitcoin.rpc import RawProxy
+
+# Sukuriame jungtį su vietiniu Bitcoin Core mazgu
+p = RawProxy()
+
+# Bloko aukštis, kuriame buvo užfiksuota Alice transakcija
+blockheight = 277316
+
+# Gauti bloko hash pagal aukštį
+blockhash = p.getblockhash(blockheight)
+
+# Gauti bloką pagal jo hash
+block = p.getblock(blockhash)
+
+# Elementas 'tx' yra sąrašas su visais transakcijos ID toje blokų
+transactions = block['tx']
+
+block_value = 0  # Bendra blokų vertė
+
+# Pereiname per kiekvieną transakciją šiame bloke
+for txid in transactions:
+    tx_value = 0  # Kiekvienos transakcijos vertė
+
+    # Gauti žaliąją transakciją pagal ID
+    raw_tx = p.getrawtransaction(txid)
+
+    # Iššifruoti transakciją
+    decoded_tx = p.decoderawtransaction(raw_tx)
+
+    # Pereiname per kiekvieną išvestį transakcijoje
+    for output in decoded_tx['vout']:
+        # Sudėti kiekvienos išvesties vertę
+        tx_value = tx_value + output['value']
+    
+    # Pridėti šios transakcijos vertę prie bendros blokų vertės
+    block_value = block_value + tx_value
+
+# Išvedame bendrą blokų vertę
+print("Total output value (in BTC) in block #277316: ", block_value)
+ ```
+</details>
 
 ```bash
 user15@aleksandr-OptiPlex-790:~$ python3 rpc_block.py

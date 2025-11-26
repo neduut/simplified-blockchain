@@ -3,9 +3,9 @@
 #include <iostream>
 #include <cassert>
 
-// Adaptuota create_merkle() funkcija is libbitcoin
-// Naudoja std::vector<std::string> vietoj bc::hash_list
-// Modifikuoja ivesta vektoriu vietoje (mutating function)
+// adaptuota create_merkle() funkcija is libbitcoin
+// naudoja std::vector<std::string> vietoj bc::hash_list
+// modifikuoja ivesta vektoriu vietoje (mutating function)
 std::string create_merkle_adapted(std::vector<std::string> merkle_hashes) {
     // Stop if hash list is empty or contains one element
     if (merkle_hashes.empty()) {
@@ -50,7 +50,7 @@ std::string create_merkle_adapted(std::vector<std::string> merkle_hashes) {
 }
 
 // sukuria visus lygius nuo lapu iki saknies
-// Dabar naudoja adaptuota create_merkle() algoritma
+// dabar naudoja adaptuota create_merkle() algoritma
 MerkleTree MerkleTree::from_leaves(const std::vector<std::string>& leaves) {
     MerkleTree tree;
     if (leaves.empty()) {
@@ -59,7 +59,7 @@ MerkleTree MerkleTree::from_leaves(const std::vector<std::string>& leaves) {
 
     tree.levels_.push_back(leaves); // 0-asis lygis - lapai
 
-    // Naudojame adaptuota create_merkle logika su lygiu sekimu
+    // naudoja adaptuota create_merkle logika su lygiu sekimu
     std::vector<std::string> current_level = leaves;
     
     // kuria aukstesnius lygius, kol liks vienas elementas (saknis)

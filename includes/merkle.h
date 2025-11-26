@@ -5,7 +5,7 @@
 
 #include "ownHash.h"
 
-// paprasta merkle medzio realizacija is tx id saraso
+// merkle medzio realizacija is tx id saraso
 // kol kas nenaudojama block header'io txRoot, tik pasirengimas ateiciai (v0.2)
 class MerkleTree {
 public:
