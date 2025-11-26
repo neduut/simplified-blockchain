@@ -498,6 +498,7 @@ Parodo, kaip gauti bendrą blokų skaičių iš Bitcoin mazgo.
 
 <details>
  <summary><strong>Kodas</strong></summary>
+ 
  ```bash
  # Pavyzdys, kaip naudoti `rpc_example.py`:
 from bitcoin.rpc import RawProxy
@@ -524,6 +525,7 @@ Naudojama transakcijos ID analizei ir išvestims gauti. Tai parodo, kaip gauti i
 
 <details>
  <summary><strong>Kodas</strong></summary>
+
  ```bash
 # `rpc_transaction.py` pavyzdys:
 from bitcoin.rpc import RawProxy
@@ -558,6 +560,7 @@ Analizuoja tam tikrą bloką pagal jo aukštį, gauna visas transakcijas ir apsk
 
 <details>
  <summary><strong>Kodas</strong></summary>
+
  ```bash
  # `rpc_block.py` pavyzdys:
 from bitcoin.rpc import RawProxy
