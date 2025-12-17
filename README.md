@@ -497,10 +497,10 @@ Kadangi mano Bitcoin Node dar nebuvo pilnai susisinchronizavęs, tai viską atli
 Parodo, kaip gauti bendrą blokų skaičių iš Bitcoin mazgo.
 
 <details>
- <summary><strong>Kodas</strong></summary>
- 
- ```bash
- # Pavyzdys, kaip naudoti `rpc_example.py`:
+<summary><strong>Kodas</strong></summary>
+
+```python
+# Pavyzdys, kaip naudoti `rpc_example.py`:
 from bitcoin.rpc import RawProxy
 
 # Sukuriame jungtį su vietiniu Bitcoin Core mazgu
@@ -524,9 +524,9 @@ user15@aleksandr-OptiPlex-790:~$ python3 rpc_example.py
 Naudojama transakcijos ID analizei ir išvestims gauti. Tai parodo, kaip gauti informaciją apie tam tikrą transakciją pagal jos txid ir išvesti adresus ir jų vertes.
 
 <details>
- <summary><strong>Kodas</strong></summary>
+<summary><strong>Kodas</strong></summary>
 
- ```bash
+```python
 # `rpc_transaction.py` pavyzdys:
 from bitcoin.rpc import RawProxy
 
@@ -545,7 +545,8 @@ decoded_tx = p.decoderawtransaction(raw_tx)
 # Išveskite kiekvieną išvestį iš transakcijos
 for output in decoded_tx['vout']:
     print(output['scriptPubKey']['address'], output['value'])
- ```
+```
+
 </details>
 
 ```bash
@@ -559,10 +560,10 @@ user15@aleksandr-OptiPlex-790:~$ python3 rpc_transaction.py
 Analizuoja tam tikrą bloką pagal jo aukštį, gauna visas transakcijas ir apskaičiuoja visą blokų vertę, sumuojant visų transakcijų išvestis.
 
 <details>
- <summary><strong>Kodas</strong></summary>
+<summary><strong>Kodas</strong></summary>
 
- ```bash
- # `rpc_block.py` pavyzdys:
+```python
+# `rpc_block.py` pavyzdys:
 from bitcoin.rpc import RawProxy
 
 # Sukuriame jungtį su vietiniu Bitcoin Core mazgu
@@ -602,7 +603,8 @@ for txid in transactions:
 
 # Išvedame bendrą blokų vertę
 print("Total output value (in BTC) in block #277316: ", block_value)
- ```
+```
+
 </details>
 
 ```bash

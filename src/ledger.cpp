@@ -36,6 +36,7 @@ uint64_t Ledger::getBalance(const std::string& publicKey) const {
     return total;
 }
 
+// === UTXO_VALIDATION ===
 bool Ledger::canApply(const Transaction& tx) const {
     if (tx.isCoinbase()) return true;
     
@@ -74,6 +75,7 @@ bool Ledger::canApplyWithFee(const Transaction& tx, uint64_t fee) const {
     return inputSum >= (outputSum + fee);
 }
 
+// === UTXO_APPLICATION ===
 bool Ledger::apply(const Transaction& tx) {
     // UTXO application
     if (!tx.isCoinbase()) {

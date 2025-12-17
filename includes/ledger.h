@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 
+// === UTXO_LEDGER_STORAGE ===
 // balansai apskaicuojami is unspent transaction outputs (UTXO)
 class Ledger {
 private:

@@ -4,6 +4,7 @@
 #include <ctime>
 #include <vector>
 
+// === UTXO_MODEL_STRUCTURES ===
 // v0.2: UTXO model
 // TxInput references a previous transaction's output
 struct TxInput {

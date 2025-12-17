@@ -484,7 +484,11 @@ bool Blockchain::mineCandidateBlocks(TxPool& pool, Ledger& ledger, size_t nTx,
     }
 }
 
-// paralelinis kandidatų kasimas 
+// === PARALLEL_MINING_START ===
+// Paralelinis kandidatų kasimas su OpenMP
+// Imituoja decentralizuotą Bitcoin tinklą, kur keli "maineriai" (threads) konkuruoja tarpusavyje
+// Kiekvienas thread'as kasa savo kandidatinį bloką su skirtingomis transakcijomis
+// Pirmas sėkmingai iškanavęs thread'as laimi - jo blokas pridedamas į grandinę
 bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_t nTx, 
                                               int numCandidates, double timeLimitSec,
                                               unsigned long long attemptsLimit) {
@@ -502,6 +506,8 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
         std::cout << "Attempts limit per round: " << attemptsLimit << " attempts\n\n";
     }
     
+    // Kasimo raundai - jei nei vienas kandidatas neiškasinėja per limitą, 
+    // limitai padidinami ir bandoma iš naujo
     int round = 1;
     double currentTimeLimit = timeLimitSec;
     unsigned long long currentAttemptsLimit = attemptsLimit;
@@ -518,42 +524,53 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
             std::cout << "Attempts limit: " << currentAttemptsLimit << "\n\n";
         }
         
-        // sukuria kandidatinius blokus
+        // ===== ŽINGSNIS 1: Kandidatinių blokų formavimas =====
+        // Kiekvienas "maineris" (thread) formuoja savo bloką su unikaliomis transakcijomis
         std::vector<Block> candidates;
         std::vector<std::vector<Transaction>> candidateTxSets;
         std::vector<std::vector<std::string>> candidateRemoveIds;
         
-        // Ensure no TX is reused across candidates: track already-picked TX IDs
+        // Užtikrina, kad tos pačios TX nepatektų į kelis kandidatus
+        // (imituoja realų Bitcoin tinklą, kur maineriai nekoordinuoja tarpusavyje)
         std::unordered_set<std::string> usedTxIds;
         
-        // Track validation statistics
+        // Validacijos statistika
         int totalSampled = 0;
         int invalidIdCount = 0;
         int insufficientBalanceCount = 0;
         int duplicateCount = 0;
         
+        // Kiekvienas kandidatas formuojamas atskirai
         for (int i = 0; i < numCandidates; ++i) {
-            std::vector<Transaction> selectedTx = pool.takeRandom(nTx * 2); // oversample to account for filtering
+            // Pasiima atsitiktines transakcijas (oversample, nes dalis bus atmesta validacijos metu)
+            std::vector<Transaction> selectedTx = pool.takeRandom(nTx * 2);
             if (selectedTx.empty()) break;
             
+            // ===== VALIDACIJA: Dviejų žingsnių transakcijų tikrinimas =====
             std::vector<Transaction> validTx;
-            std::vector<std::string> toRemoveValidIds; // remove only confirmed tx
-            // For UTXO: track which inputs are already used in this candidate
+            std::vector<std::string> toRemoveValidIds; // Patvirtintos TX ID, kurias pašalinti iš pool
+            
+            // UTXO modelis: sekame kurie input'ai jau panaudoti šiame kandidate
+            // (vienoje transakcijoje negali būti du kartus panaudotas tas pats UTXO)
             std::set<std::string> usedInputsInCandidate;
             
             for (const auto& tx : selectedTx) {
                 totalSampled++;
-                // skip if already used by another candidate
+                
+                // Tikrina ar TX jau naudojama kitame kandidate
                 if (usedTxIds.count(tx.getId()) > 0) {
                     duplicateCount++;
                     continue;
                 }
+                
+                // VALIDACIJA 1: Transakcijos ID hash patikrinimas
                 if (!tx.verifyId()) {
                     invalidIdCount++;
                     continue;
                 }
                 
-                // For pure UTXO: check if transaction's inputs are valid and not already used
+                // VALIDACIJA 2: UTXO double-spending tikrinimas šiame kandidate
+                // Patikrina ar transakcijos input'ai dar nebuvo panaudoti
                 bool inputsAlreadyUsed = false;
                 for (const auto& input : tx.getInputs()) {
                     std::string inputKey = input.prevTxId + ":" + std::to_string(input.outputIndex);
@@ -568,17 +585,22 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
                     continue;
                 }
                 
-                // Validate using ledger's UTXO validation
+                // VALIDACIJA 3: Ledger tikrinimas (ar egzistuoja UTXO, ar pakanka balanso + fee)
                 if (ledger.canApplyWithFee(tx, TX_FEE)) {
                     validTx.push_back(tx);
                     toRemoveValidIds.push_back(tx.getId());
-                    // Mark inputs as used
+                    
+                    // Pažymi input'us kaip panaudotus šiame kandidate
                     for (const auto& input : tx.getInputs()) {
                         std::string inputKey = input.prevTxId + ":" + std::to_string(input.outputIndex);
                         usedInputsInCandidate.insert(inputKey);
                     }
+                    
+                    // Pažymi TX kaip panaudotą (negalės būti kituose kandidatuose)
                     usedTxIds.insert(tx.getId());
-                    if (validTx.size() >= nTx - 1) break; // limit to nTx-1 to account for coinbase
+                    
+                    // Riboja kandidato dydį (nTx-1, nes dar pridės coinbase)
+                    if (validTx.size() >= nTx - 1) break;
                 } else {
                     insufficientBalanceCount++;
                 }
@@ -586,37 +608,39 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
             
             if (validTx.empty()) continue;
 
-            // Prepend coinbase transaction (reward + fees)
+            // ===== COINBASE transakcija: Mainerio atlygis =====
+            // Apskaičiuoja mainerio atlygį: Block Reward + sumos iš visų TX fee
             uint64_t totalFees = static_cast<uint64_t>(validTx.size()) * TX_FEE;
             uint64_t coinbaseAmt = BLOCK_REWARD + totalFees;
             
-            // Get block index for coinbase uniqueness and block creation
+            // Gauna bloko indeksą (reikalingas coinbase unikalumui)
             int newIndex = static_cast<int>(chain_.size());
             
-            // Create coinbase as UTXO transaction
-            // Coinbase has special "input" with block index to ensure uniqueness
+            // Sukuria coinbase TX pagal UTXO modelį
+            // Coinbase turi specialų "input" su bloko numeriu (užtikrina unikalumą)
             std::vector<TxInput> coinbaseInputs;
-            coinbaseInputs.push_back(TxInput("coinbase", newIndex)); // Unique per block
+            coinbaseInputs.push_back(TxInput("coinbase", newIndex)); // Unikalus kiekvienam blokui
             std::vector<TxOutput> coinbaseOutputs;
-            coinbaseOutputs.push_back(TxOutput(FEE_COLLECTOR, coinbaseAmt));
+            coinbaseOutputs.push_back(TxOutput(FEE_COLLECTOR, coinbaseAmt)); // Atlygis maineriui
             Transaction coinbase(coinbaseInputs, coinbaseOutputs);
             
+            // Formuoja galutinį transakcijų sąrašą: coinbase + validuotos TX
             std::vector<Transaction> blockTxs;
             blockTxs.reserve(validTx.size() + 1);
-            blockTxs.push_back(coinbase);
+            blockTxs.push_back(coinbase);        // Pirma visada coinbase
             for (const auto& t : validTx) blockTxs.push_back(t);
             
+            // ===== Sukuria kandidatinį bloką =====
             std::string prevHash = getLastBlockHash();
             Block candidate(newIndex, blockTxs, prevHash, difficulty_);
             
+            // Išsaugo kandidatą ir jo duomenis
             candidates.push_back(candidate);
             candidateTxSets.push_back(blockTxs);
             candidateRemoveIds.push_back(toRemoveValidIds);
-            
-            // compact console: don't print candidate details
         }
         
-        // Print validation statistics
+        // Validacijos statistikos spausdinimas
         if (invalidIdCount > 0 || insufficientBalanceCount > 0 || duplicateCount > 0) {
             std::cout << "Validation: sampled " << totalSampled << " tx; ";
             if (invalidIdCount > 0) std::cout << invalidIdCount << " invalid ID, ";
@@ -630,35 +654,49 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
             return false;
         }
         
-    // compact console: skip verbose mining info
+        // ===== ŽINGSNIS 2: PARALELINIS KASIMAS SU OpenMP =====
+        // Kiekvienas thread kasa savo kandidatinį bloką konkuruojant su kitais
+        // Pirmas thread'as, kuris suranda tinkamą nonce, laimi ir sustabdo kitus
         
-        // paralelinis kasimas su OpenMP
         Timer roundTimer;
-        std::atomic<bool> stopFlag{false};
-        int winIdx = -1;
-        std::vector<unsigned long long> nonces(candidates.size(), 0);
-        std::vector<double> times(candidates.size(), 0.0);
+        std::atomic<bool> stopFlag{false};  // Shared flag: kai true, visi thread'ai sustoja
+        int winIdx = -1;                     // Laimėtojo indeksas (-1 = dar nėra laimėtojo)
+        std::vector<unsigned long long> nonces(candidates.size(), 0);  // Kiekvieno thread'o nonce
+        std::vector<double> times(candidates.size(), 0.0);              // Kiekvieno thread'o laikas
 
+        // === PARALLEL_OMP_LOOP ===
+        // ===== OpenMP PARALELINIS CIKLAS =====
+        // #pragma omp parallel for - sukuria kelis thread'us, kiekvienas kasa savo kandidatą
+        // shared(...) - visi thread'ai mato tas pačias kintamąsias (stopFlag, candidates, etc.)
         #pragma omp parallel for shared(stopFlag, winIdx, candidates, nonces, times)
         for (int i = 0; i < static_cast<int>(candidates.size()); ++i) {
+            // Jei kitas thread'as jau laimėjo, šis thread'as tuoj pat baigiasi
             if (stopFlag.load(std::memory_order_relaxed)) continue;
             
+            // Kasa bloką su laiko/bandymų limitais
             Timer t;
             unsigned long long n = 0;
             bool ok = mineBlockWithTimeLimitStop(candidates[i], currentTimeLimit, currentAttemptsLimit, n, stopFlag);
             times[i] = t.elapsed();
             
+            // Jei šis thread'as sėkmingai iškasė bloką
             if (ok) {
                 nonces[i] = n;
+                
+                // === PARALLEL_CRITICAL_SECTION ===
+                // KRITINĖ SEKCIJA: tik vienas thread'as vienu metu gali čia būti
+                // Užtikrina, kad tik PIRMAS sėkmingai iškanavęs thread'as bus laimėtojas
                 #pragma omp critical
                 {
-                    if (winIdx == -1) {  // pirmas laimėtojas
-                        winIdx = i;
-                        stopFlag.store(true, std::memory_order_relaxed);
+                    if (winIdx == -1) {  // Dar nėra laimėtojo?
+                        winIdx = i;      // Šis thread'as tampa laimėtoju
+                        stopFlag.store(true, std::memory_order_relaxed); // Sustabdo kitus thread'us
                     }
                 }
             }
         }
+        
+        // Paralelinio kasimo pabaiga - surenkame rezultatus
         unsigned long long bestNonce = 0;
         double bestTime = 0.0;
         if (winIdx >= 0) {
@@ -666,24 +704,29 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
             bestTime = times[static_cast<size_t>(winIdx)];
         }
         
+        // ŽINGSNIS 3: rezultatų apdorojimas 
         if (winIdx >= 0) {
-            // compact console: don't print winner nonce/hash/time
+            // === PARALLEL_WINNER_APPLICATION ===
+            // LAIMĖTOJAS RASTAS! Pritaikoma jo blokas į blockchain
             
-            // Apply all transactions (including coinbase) - UTXO handles fees via outputs
+            // Pritaiko visas laimėtojo bloko transakcijas į ledger (UTXO modelis)
+            // Coinbase ir fee yra apdorojami per transaction outputs
             const auto& wonTxs = candidateTxSets[winIdx];
             for (const Transaction& tx : wonTxs) {
-                ledger.apply(tx);
+                ledger.apply(tx);  // Atnaujina UTXO set
             }
             
+            // Pašalina panaudotas transakcijas iš pool
             pool.eraseByIds(candidateRemoveIds[winIdx]);
             
-            // Clean up invalid transactions (whose UTXOs were spent in this block)
+            // Valo invalid transakcijas (kurių UTXO buvo išleisti šiame bloke)
             pool.removeInvalid(ledger, TX_FEE);
             
+            // Prideda laimėtojo bloką į blockchain
             chain_.push_back(candidates[winIdx]);
             saveToFile(candidates[winIdx]);
             
-            // detalesne statistika paraleliniam kasimui
+            // Išsaugo kasimo statistiką
             miningHistory_.push_back({bestTime, bestNonce, candidates[winIdx].getIndex()});
             
             std::cout << "Block #" << candidates[winIdx].getIndex() 
@@ -692,22 +735,25 @@ bool Blockchain::mineCandidateBlocksParallel(TxPool& pool, Ledger& ledger, size_
             
             return true;
         } else {
+            // NĖ VIENAS KANDIDATAS NEIŠKASĖ per limitą
+            // Padidinami limitai ir bandoma iš naujo kitame raunde
             std::cout << "\nNo block mined with current limits. ";
             bool printed = false;
             if (currentTimeLimit > 0.0) {
-                currentTimeLimit *= 1.5;
+                currentTimeLimit *= 1.5;  // +50% laiko
                 std::cout << "Increasing time limit to " << std::fixed
                           << std::setprecision(1) << currentTimeLimit << "s";
                 printed = true;
             }
             if (currentAttemptsLimit > 0) {
-                currentAttemptsLimit = static_cast<unsigned long long>(currentAttemptsLimit * 1.5);
+                currentAttemptsLimit = static_cast<unsigned long long>(currentAttemptsLimit * 1.5);  // +50% bandymų
                 if (printed) std::cout << " and ";
                 std::cout << "attempts to " << currentAttemptsLimit;
             }
             std::cout << "...\n\n";
             round++;
 
+            // Saugiklis nuo begalinio ciklo (max 10 raundų)
             if (round > 10) {
                 std::cout << "Too many rounds - aborting.\n";
                 return false;
